@@ -6,45 +6,29 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using MemcardRex.Enums;
 
 namespace MemcardRex
 {
 	internal class ps1card
 	{
-		//Shift-JIS converter
 		private readonly charConverter SJISC = new charConverter();
-		//Memory Card's location (path + filename)
-		public string cardLocation;
-		//Memory Card's name
+		public string cardLocation; //path + filename
 		public string cardName;
-		//Memory Card's type (0 - unset, 1 - raw, 2 - gme, 3 - vgs, 4 - vmp (read only));
-		public byte cardType;
-		//Flag used to determine if the card has been edited since the last saving
-		public bool changedFlag;
-		//Header data for the GME Memory Card
-		public byte[] gmeHeader = new byte[3904];
-		//Memory Card header data, 15 slots (128 bytes each)
-		public byte[,] headerData = new byte[15, 128];
-		//Memory Card icon data, 15 slots, 3 icons per slot, (16*16px icons)
-		public Bitmap[,] iconData = new Bitmap[15, 3];
-		//Number of icon frames
+		public MemoryCardType cardType;
+		public bool changedFlag; //Flag used to determine if the card has been edited since the last saving
+		public byte[] gmeHeader = new byte[3904]; //Header data for the GME Memory Card
+		public byte[,] headerData = new byte[15, 128]; //15 slots (128 bytes each)
+		public Bitmap[,] iconData = new Bitmap[15, 3];//15 slots, 3 icons per slot, (16*16px icons)
 		public int[] iconFrames = new int[15];
-		//Memory Card icon palette data, 15 slots
-		public Color[,] iconPalette = new Color[15, 16];
-		//Complete Memory Card in the raw format (131072 bytes)
-		private byte[] rawMemoryCard = new byte[131072];
-		//Save comments (supported by .gme files only), 255 characters allowed
-		public string[] saveComments = new string[15];
-		//Memory Card save data, 15 slots (8192 bytes each)
-		public byte[,] saveData = new byte[15, 8192];
-		//Identifier string of the save
+		public Color[,] iconPalette = new Color[15, 16]; //15 slots x 16 colors
+		private byte[] rawMemoryCard = new byte[131072]; //Complete Memory Card in the raw format (131072 bytes)
+		public string[] saveComments = new string[15]; //Save comments (supported by .gme files only), 255 characters allowed
+		public byte[,] saveData = new byte[15, 8192];//15 slots (8192 bytes each)
 		public string[] saveIdentifier = new string[15];
-		//Name of the save in ASCII(0) and UTF-16(1) encoding
-		public string[,] saveName = new string[15, 2];
-		//Product code of the save
-		public string[] saveProdCode = new string[15];
-		//Region of the save (16 bit value, ASCII representation: BA - America, BE - Europe, BI - Japan)
-		public ushort[] saveRegion = new ushort[15];
+		public string[,] saveName = new string[15, 2]; //Name of the save in ASCII(0) and UTF-16(1) encoding
+		public string[] saveProductCode = new string[15];
+		public MemoryCardSaveRegion[] saveRegion = new MemoryCardSaveRegion[15];
 		//Size of the save in KBs
 		public int[] saveSize = new int[15];
 		//Type of the save (0 - formatted, 1 - initial, 2 - middle link, 3 - end link, 4 - deleted initial, 5 - deleted middle link, 6 - deleted end link, 7 - corrupted)
@@ -223,7 +207,7 @@ namespace MemcardRex
 			byte[] tempByteArray;
 
 			//Clear existing data
-			saveProdCode = new string[15];
+			saveProductCode = new string[15];
 			saveIdentifier = new string[15];
 			saveName = new string[15, 2];
 
@@ -235,7 +219,7 @@ namespace MemcardRex
 					tempByteArray[byteCount] = headerData[slotNumber, byteCount + 12];
 
 				//Convert Product Code from currently used codepage to UTF-16
-				saveProdCode[slotNumber] = Encoding.Default.GetString(tempByteArray);
+				saveProductCode[slotNumber] = Encoding.Default.GetString(tempByteArray);
 
 
 				//Copy Identifier
@@ -525,13 +509,13 @@ namespace MemcardRex
 		private void loadRegion()
 		{
 			//Clear existing data
-			saveRegion = new ushort[15];
+			saveRegion = new MemoryCardSaveRegion[15];
 
 			//Cycle trough each slot
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
 				//Store save region
-				saveRegion[slotNumber] = (ushort)((headerData[slotNumber, 11] << 8) | headerData[slotNumber, 10]);
+				saveRegion[slotNumber] = (MemoryCardSaveRegion)((headerData[slotNumber, 11] << 8) | headerData[slotNumber, 10]);
 			}
 		}
 
@@ -880,7 +864,7 @@ namespace MemcardRex
 		}
 
 		//Save Memory Card to the given filename
-		public bool saveMemoryCard(string fileName, int memoryCardType)
+		public bool saveMemoryCard(string fileName, MemoryCardType memoryCardType)
 		{
 			BinaryWriter binWriter = null;
 
@@ -904,13 +888,13 @@ namespace MemcardRex
 					binWriter.Write(rawMemoryCard);
 					break;
 
-				case 2: //GME Memory Card
+				case MemoryCardType.Gme:
 					fillGmeHeader();
 					binWriter.Write(gmeHeader);
 					binWriter.Write(rawMemoryCard);
 					break;
 
-				case 3: //VGS Memory Card
+				case MemoryCardType.Vgs:
 					binWriter.Write(getVGSheader());
 					binWriter.Write(rawMemoryCard);
 					break;
@@ -1007,27 +991,27 @@ namespace MemcardRex
 					default: //File type is not supported
 						return "'" + cardName + "' is not a supported Memory Card format.";
 
-					case "MC": //Standard raw Memory Card
+					case "MC":
 						startOffset = 0;
-						cardType = 1;
+						cardType = MemoryCardType.Raw;
 						break;
 
-					case "123-456-STD": //DexDrive GME Memory Card
+					case "123-456-STD":
 						startOffset = 3904;
-						cardType = 2;
+						cardType = MemoryCardType.Gme;
 
 						//Copy input data to gmeHeader
 						for (var i = 0; i < 3904; i++) gmeHeader[i] = tempData[i];
 						break;
 
-					case "VgsM": //VGS Memory Card
+					case "VgsM":
 						startOffset = 64;
-						cardType = 3;
+						cardType = MemoryCardType.Vgs;
 						break;
 
-					case "PMV": //PSP virtual Memory Card
+					case "PMV": 
 						startOffset = 128;
-						cardType = 4;
+						cardType = MemoryCardType.Vmp;
 						break;
 				}
 
