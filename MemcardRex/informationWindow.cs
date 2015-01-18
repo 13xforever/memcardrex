@@ -1,135 +1,120 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Text;
 using System.Windows.Forms;
 
 namespace MemcardRex
 {
-    public partial class informationWindow : Form
-    {
-        //Save icons
-        Bitmap[] iconData;
-        int iconIndex = 0;
-        int maxCount = 1;
-        int iconInterpolationMode = 0;
-        int iconSize = 0;
-        int iconBackColor = 0;
+	public partial class informationWindow : Form
+	{
+		private int iconBackColor;
+		//Save icons
+		private Bitmap[] iconData;
+		private int iconIndex;
+		private int iconInterpolationMode;
+		private int iconSize;
+		private int maxCount = 1;
+		public informationWindow() { InitializeComponent(); }
+		private void OKbutton_Click(object sender, EventArgs e) { Close(); }
+		//Initialize default values
+		public void initializeDialog(string saveTitle, string saveProdCode, string saveIdentifier, ushort saveRegion, int saveSize, int iconFrames, int interpolationMode, int iconPropertiesSize, Bitmap[] saveIcons, int[] slotNumbers, int backColor)
+		{
+			string ocupiedSlots = null;
 
-        public informationWindow()
-        {
-            InitializeComponent();
-        }
+			iconInterpolationMode = interpolationMode;
+			iconSize = iconPropertiesSize;
+			saveTitleLabel.Text = saveTitle;
+			productCodeLabel.Text = saveProdCode;
+			identifierLabel.Text = saveIdentifier;
+			sizeLabel.Text = saveSize + " KB";
+			iconFramesLabel.Text = iconFrames.ToString();
+			maxCount = iconFrames;
+			iconData = saveIcons;
+			iconBackColor = backColor;
 
-        private void OKbutton_Click(object sender, EventArgs e)
-        {
-            this.Close();
-        }
+			//Show region string
+			switch (saveRegion)
+			{
+				default: //Region custom, show hex
+					regionLabel.Text = "0x" + saveRegion.ToString("X4");
+					break;
 
-        //Initialize default values
-        public void initializeDialog(string saveTitle, string saveProdCode, string saveIdentifier, ushort saveRegion, int saveSize, int iconFrames, int interpolationMode, int iconPropertiesSize,  Bitmap[] saveIcons, int[] slotNumbers, int backColor)
-        {
-            string ocupiedSlots = null;
+				case 0x4142: //America
+					regionLabel.Text = "America";
+					break;
 
-            iconInterpolationMode = interpolationMode;
-            iconSize = iconPropertiesSize;
-            saveTitleLabel.Text = saveTitle;
-            productCodeLabel.Text = saveProdCode;
-            identifierLabel.Text = saveIdentifier;
-            sizeLabel.Text = saveSize.ToString() + " KB";
-            iconFramesLabel.Text = iconFrames.ToString();
-            maxCount = iconFrames;
-            iconData = saveIcons;
-            iconBackColor = backColor;
+				case 0x4542: //Europe
+					regionLabel.Text = "Europe";
+					break;
 
-            //Show region string
-            switch(saveRegion)
-            {
-                default:        //Region custom, show hex
-                    regionLabel.Text = "0x" + saveRegion.ToString("X4");
-                    break;
+				case 0x4942: //Japan
+					regionLabel.Text = "Japan";
+					break;
+			}
 
-                case 0x4142:    //America
-                    regionLabel.Text = "America";
-                    break;
+			//Get ocupied slots
+			for (var i = 0; i < slotNumbers.Length; i++)
+			{
+				ocupiedSlots += (slotNumbers[i] + 1) + ", ";
+			}
 
-                case 0x4542:    //Europe
-                    regionLabel.Text = "Europe";
-                    break;
+			//Show ocupied slots
+			slotLabel.Text = ocupiedSlots.Remove(ocupiedSlots.Length - 2);
 
-                case 0x4942:    //Japan
-                    regionLabel.Text = "Japan";
-                    break;
-            }
+			//Draw first icon so there is no delay
+			drawIcons(iconIndex);
 
-            //Get ocupied slots
-            for (int i = 0; i < slotNumbers.Length; i++)
-            {
-                ocupiedSlots += (slotNumbers[i] + 1).ToString() + ", ";
-            }
+			//Enable Paint timer in case of multiple frames
+			if (iconFrames > 1) iconPaintTimer.Enabled = true;
+		}
 
-            //Show ocupied slots
-            slotLabel.Text = ocupiedSlots.Remove(ocupiedSlots.Length-2);
+		//Draw scaled icons
+		private void drawIcons(int selectedIndex)
+		{
+			var tempBitmap = new Bitmap(48, 48);
+			var iconGraphics = Graphics.FromImage(tempBitmap);
 
-            //Draw first icon so there is no delay
-            drawIcons(iconIndex);
+			//Set icon interpolation mode
+			if (iconInterpolationMode == 0) iconGraphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+			else iconGraphics.InterpolationMode = InterpolationMode.Bilinear;
 
-            //Enable Paint timer in case of multiple frames
-            if (iconFrames > 1) iconPaintTimer.Enabled = true;
-        }
+			iconGraphics.PixelOffsetMode = PixelOffsetMode.Half;
 
-        //Draw scaled icons
-        private void drawIcons(int selectedIndex)
-        {
-            Bitmap tempBitmap = new Bitmap(48, 48);
-            Graphics iconGraphics = Graphics.FromImage(tempBitmap);
+			//Check what background color should be set
+			switch (iconBackColor)
+			{
+				case 1: //Black
+					iconGraphics.FillRegion(new SolidBrush(Color.Black), new Region(new Rectangle(0, 0, 48, 48)));
+					break;
 
-            //Set icon interpolation mode
-            if(iconInterpolationMode == 0)iconGraphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-            else iconGraphics.InterpolationMode = InterpolationMode.Bilinear;
+				case 2: //Gray
+					iconGraphics.FillRegion(new SolidBrush(Color.FromArgb(0xFF, 0x30, 0x30, 0x30)), new Region(new Rectangle(0, 0, 48, 48)));
+					break;
 
-            iconGraphics.PixelOffsetMode = PixelOffsetMode.Half;
+				case 3: //Blue
+					iconGraphics.FillRegion(new SolidBrush(Color.FromArgb(0xFF, 0x44, 0x44, 0x98)), new Region(new Rectangle(0, 0, 48, 48)));
+					break;
+			}
 
-            //Check what background color should be set
-            switch (iconBackColor)
-            {
-                case 1:     //Black
-                    iconGraphics.FillRegion(new SolidBrush(Color.Black), new Region(new Rectangle(0, 0, 48, 48)));
-                    break;
+			iconGraphics.DrawImage(iconData[selectedIndex], 0, 0, 32 + (iconSize*16), 32 + (iconSize*16));
 
-                case 2:     //Gray
-                    iconGraphics.FillRegion(new SolidBrush(Color.FromArgb(0xFF, 0x30, 0x30, 0x30)), new Region(new Rectangle(0, 0, 48, 48)));
-                    break;
+			iconRender.Image = tempBitmap;
+			iconGraphics.Dispose();
+		}
 
-                case 3:     //Blue
-                    iconGraphics.FillRegion(new SolidBrush(Color.FromArgb(0xFF, 0x44, 0x44, 0x98)), new Region(new Rectangle(0, 0, 48, 48)));
-                    break;
-            }
+		private void informationWindow_FormClosing(object sender, FormClosingEventArgs e)
+		{
+			//Disable Paint timer
+			iconPaintTimer.Enabled = false;
+		}
 
-            iconGraphics.DrawImage(iconData[selectedIndex], 0, 0, 32 + (iconSize * 16), 32 + (iconSize * 16));
+		private void iconPaintTimer_Tick(object sender, EventArgs e)
+		{
+			if (iconIndex < (maxCount - 1)) iconIndex++;
+			else iconIndex = 0;
+			drawIcons(iconIndex);
+		}
 
-            iconRender.Image = tempBitmap;
-            iconGraphics.Dispose();
-        }
-
-        private void informationWindow_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            //Disable Paint timer
-            iconPaintTimer.Enabled = false;
-        }
-
-        private void iconPaintTimer_Tick(object sender, EventArgs e)
-        {
-            if (iconIndex < (maxCount-1)) iconIndex++; else iconIndex = 0;
-            drawIcons(iconIndex);
-        }
-
-        private void informationWindow_Load(object sender, EventArgs e)
-        {
-
-        }
-    }
+		private void informationWindow_Load(object sender, EventArgs e) { }
+	}
 }

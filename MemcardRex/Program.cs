@@ -14,22 +14,21 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace MemcardRex
 {
-    static class Program
-    {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new mainWindow());
-        }
-    }
+	internal static class Program
+	{
+		/// <summary>
+		///     The main entry point for the application.
+		/// </summary>
+		[STAThread]
+		private static void Main()
+		{
+			Application.EnableVisualStyles();
+			Application.SetCompatibleTextRenderingDefault(false);
+			Application.Run(new mainWindow());
+		}
+	}
 }
