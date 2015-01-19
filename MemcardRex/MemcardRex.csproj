@@ -145,6 +145,7 @@
     </Compile>
     <Compile Include="Utils\ArrayEx.cs" />
     <Compile Include="Utils\Checks.cs" />
+    <Compile Include="Utils\Palette.cs" />
     <Compile Include="xmlSettingsEditor.cs" />
     <EmbeddedResource Include="UI\aboutWindow.resx">
       <DependentUpon>aboutWindow.cs</DependentUpon>

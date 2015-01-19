@@ -306,43 +306,15 @@ namespace MemcardRex
 
 		private void LoadRegion()
 		{
-			SaveRegion.Clear();
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 				SaveRegion[slotNumber] = (MemoryCardSaveRegion)((HeaderData[slotNumber, 11] << 8) | HeaderData[slotNumber, 10]);
 		}
 
-		//Load palette
 		private void LoadPalette()
 		{
-			var redChannel = 0;
-			var greenChannel = 0;
-			var blueChannel = 0;
-			var colorCounter = 0;
-			var blackFlag = 0;
-
-			//Clear existing data
-			IconPalette = new Color[15, 16];
-
-			//Cycle through each slot on the Memory Card
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-			{
-				//Reset color counter
-				colorCounter = 0;
-
-				//Fetch two bytes at a time
-				for (var byteCount = 0; byteCount < 32; byteCount += 2)
-				{
-					redChannel = (SaveData[slotNumber, byteCount + 96] & 0x1F) << 3;
-					greenChannel = ((SaveData[slotNumber, byteCount + 97] & 0x3) << 6) | ((SaveData[slotNumber, byteCount + 96] & 0xE0) >> 2);
-					blueChannel = ((SaveData[slotNumber, byteCount + 97] & 0x7C) << 1);
-					blackFlag = (SaveData[slotNumber, byteCount + 97] & 0x80);
-
-					//Get the color value
-					if ((redChannel | greenChannel | blueChannel | blackFlag) == 0) IconPalette[slotNumber, colorCounter] = Color.Transparent;
-					else IconPalette[slotNumber, colorCounter] = Color.FromArgb(redChannel, greenChannel, blueChannel);
-					colorCounter++;
-				}
-			}
+				for (var colorIdx = 0; colorIdx < 16; colorIdx++)
+					IconPalette[slotNumber, colorIdx] = Palette.GetColorFromRgba5551(SaveData, slotNumber, 96 + colorIdx*2);
 		}
 
 		//Load the icons

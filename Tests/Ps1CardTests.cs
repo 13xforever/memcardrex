@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using MemcardRex;
 using MemcardRex.Enums;
+using MemcardRex.Utils;
 using NUnit.Framework;
 
 namespace Tests
@@ -58,6 +59,21 @@ namespace Tests
 			ushort customRegion = 1;
 			var invalidMemoryCardSaveRegion = (MemoryCardSaveRegion)customRegion;
 			Assert.That((ushort)invalidMemoryCardSaveRegion, Is.EqualTo(customRegion));
+		}
+
+		[Test]
+		public void ArrayTest()
+		{
+			var test = new byte[2, 2]
+						{
+							{1, 2},
+							{3, 4},
+						};
+			test.Clear();
+			Assert.That(test[0,0], Is.EqualTo(0));
+			Assert.That(test[0,1], Is.EqualTo(0));
+			Assert.That(test[1,0], Is.EqualTo(0));
+			Assert.That(test[1,1], Is.EqualTo(0));
 		}
 	}
 }
