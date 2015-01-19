@@ -156,6 +156,7 @@ namespace MemcardRex
 		{
 			CalculateChecksums();
 			LoadStringData();
+			LoadGmeComments();
 			LoadSlotTypes();
 			LoadRegion();
 			CalculateSaveSize();
@@ -411,6 +412,7 @@ namespace MemcardRex
 		{
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 				FormatSlot(slotNumber);
+			CardName = "Untitled";
 			ChangedFlag = true;
 			ParseEverything();
 		}
@@ -447,7 +449,7 @@ namespace MemcardRex
 					return true;
 				}
 			}
-			catch (Exception)
+			catch
 			{
 				return false;
 			}
@@ -496,19 +498,19 @@ namespace MemcardRex
 				cardData[0] = 0x51; //Q
 				return SetSaveBytes(slotNumber, cardData, out requiredSlots);
 			}
-			catch (Exception)
+			catch
 			{
 				return false;
 			}
 		}
 
-		public bool SaveTo(string filePath, Type type)
+		public bool ExportTo(string filePath, Type type)
 		{
 			try
 			{
-				using (var file = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+				using (var stream = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
 				{
-					SaveTo(file, type);
+					ExportTo(stream, type);
 					CardLocation = filePath;
 					CardName = Path.GetFileNameWithoutExtension(filePath);
 					return true;
@@ -520,30 +522,30 @@ namespace MemcardRex
 			}
 		}
 
-		public void SaveTo(Stream outputStream, Type type)
+		public void ExportTo(Stream outputStream, Type type)
 		{
-			using (var binWriter = new BinaryWriter(outputStream))
+			using (var writer = new BinaryWriter(outputStream))
 			{
 				CreateRawCardInternal();
 				switch (type)
 				{
 					case Type.Gme:
 						CreateGmeHeader();
-						binWriter.Write(GmeHeader);
-						binWriter.Write(rawData);
+						writer.Write(GmeHeader);
+						writer.Write(rawData);
 						break;
 
 					case Type.Vgs:
-						binWriter.Write(GetVgsHeader());
-						binWriter.Write(rawData);
+						writer.Write(GetVgsHeader());
+						writer.Write(rawData);
 						break;
 
 					default:
-						binWriter.Write(rawData);
+						writer.Write(rawData);
 						break;
 				}
 				ChangedFlag = false;
-				binWriter.Flush();
+				writer.Flush();
 			}
 		}
 
@@ -558,129 +560,48 @@ namespace MemcardRex
 			rawData = memCardData;
 			ParseRawCardInternal();
 			CardName = "Untitled";
-			CalculateChecksums();
-			LoadStringData();
-			LoadGmeComments();
-			LoadSlotTypes();
-			LoadRegion();
-			CalculateSaveSize();
-			LoadPalette();
-			LoadIcons();
-			LoadIconFrames();
-
-			//Since the stream is of the unknown origin Memory Card is treated as edited
-			ChangedFlag = true;
+			ParseEverything();
+			ChangedFlag = true; //Since the stream is of the unknown origin Memory Card is treated as edited
 		}
 
-		//Open Memory Card from the given filename (return error message if operation is not sucessfull)
-		public string openMemoryCard(string fileName)
+		public void ImportFrom(string fileName)
 		{
-			//Check if the Memory Card should be opened or created
-			if (fileName != null)
+			var cardData = new byte[GmeHeaderSize + MemoryCardSize];
+			using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+			using (BinaryReader reader = new BinaryReader(stream))
+				reader.BaseStream.Read(cardData, 0, GmeHeaderSize + MemoryCardSize);
+			CardLocation = fileName;
+			CardName = Path.GetFileNameWithoutExtension(fileName);
+			var startOffset = 0;
+			var signature = Encoding.ASCII.GetString(cardData, 0, 11).Trim('\0', '\x01', '\x3F');
+			switch (signature)
 			{
-				var tempData = new byte[134976];
-				string tempString = null;
-				var startOffset = 0;
-				BinaryReader binReader = null;
+				case "MC":
+					CardType = Type.Raw;
+					break;
 
-				//Check if the file is allowed to be opened
-				try
-				{
-					binReader = new BinaryReader(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
-				}
-				catch (Exception errorException)
-				{
-					//Return the error description
-					return errorException.Message;
-				}
+				case "123-456-STD":
+					startOffset = 3904;
+					CardType = Type.Gme;
+					Buffer.BlockCopy(cardData, 0, GmeHeader, 0, GmeHeaderSize);
+					break;
 
-				//Put data into temp array
-				binReader.BaseStream.Read(tempData, 0, GmeHeaderSize + MemoryCardSize);
+				case "VgsM":
+					startOffset = 64;
+					CardType = Type.Vgs;
+					break;
 
-				//File is sucesfully read, close the stream
-				binReader.Close();
+				case "PMV":
+					startOffset = 128;
+					CardType = Type.Vmp;
+					break;
 
-				//Store the location of the Memory Card
-				CardLocation = fileName;
-
-				//Store the filename of the Memory Card
-				CardName = Path.GetFileNameWithoutExtension(fileName);
-
-				//Check the format of the card and if it's supported load it (filter illegal characters from types)
-				tempString = Encoding.ASCII.GetString(tempData, 0, 11).Trim((char)0x00, (char)0x01, (char)0x3F);
-				switch (tempString)
-				{
-					case "MC":
-						startOffset = 0;
-						CardType = Type.Raw;
-						break;
-
-					case "123-456-STD":
-						startOffset = 3904;
-						CardType = Type.Gme;
-						for (var i = 0; i < GmeHeaderSize; i++)
-							GmeHeader[i] = tempData[i];
-						break;
-
-					case "VgsM":
-						startOffset = 64;
-						CardType = Type.Vgs;
-						break;
-
-					case "PMV": 
-						startOffset = 128;
-						CardType = Type.Vmp;
-						break;
-
-					default: //File type is not supported
-						return "'" + CardName + "' is not a supported Memory Card format.";
-				}
-
-				//Copy data to rawData array with offset from input data
-				Buffer.BlockCopy(tempData, startOffset, rawData, 0, MemoryCardSize);
-
-				//Load Memory Card data from raw card
-				ParseRawCardInternal();
+				default:
+					throw new InvalidDataException("'" + CardName + "' is not a supported Memory Card format.");
 			}
-			// Memory Card should be created
-			else
-			{
-				CardName = "Untitled";
-				Format();
-
-				//Set changedFlag to false since this is created card
-				ChangedFlag = false;
-			}
-
-			//Calculate XOR checksum (in case if any of the saveHeaders have corrputed XOR)
-			CalculateChecksums();
-
-			//Convert various Memory Card data to strings
-			LoadStringData();
-
-			//Load GME comments (if card is any other type comments will be null)
-			LoadGmeComments();
-
-			//Load slot descriptions (types)
-			LoadSlotTypes();
-
-			//Load region data
-			LoadRegion();
-
-			//Load size data
-			CalculateSaveSize();
-
-			//Load icon palette data as Color values
-			LoadPalette();
-
-			//Load icon data to bitmaps
-			LoadIcons();
-
-			//Load number of frames
-			LoadIconFrames();
-
-			//Everything went well, no error messages
-			return null;
+			Buffer.BlockCopy(cardData, startOffset, rawData, 0, MemoryCardSize);
+			ParseRawCardInternal();
+			ParseEverything();
 		}
 	}
 }

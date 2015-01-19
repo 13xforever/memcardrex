@@ -296,7 +296,7 @@ namespace MemcardRex
 						//Copy the file (make a backup of it)
 						File.Copy(fileName, appPath + "/Backup/" + fInfo.Name);
 					}
-					catch (Exception)
+					catch
 					{
 					}
 				}
@@ -338,9 +338,6 @@ namespace MemcardRex
 		//Open a Memory Card from the given filename
 		private void openCard(string fileName)
 		{
-			//Container for the error message
-			string errorMsg = null;
-
 			//Check if the card already exists
 			foreach (var checkCard in PScard)
 			{
@@ -355,25 +352,17 @@ namespace MemcardRex
 			//Create a new card
 			PScard.Add(new Ps1Card());
 
-			//Try to open card
-			errorMsg = PScard[PScard.Count - 1].openMemoryCard(fileName);
-
-			//If card is sucesfully opened proceed further, else destroy it
-			if (errorMsg == null)
+			try
 			{
-				//Backup opened card
+				PScard[PScard.Count - 1].ImportFrom(fileName);
 				backupMemcard(fileName);
-
-				//Make a new tab for the opened card
 				createTabPage();
 			}
-			else
+			catch (Exception e)
 			{
 				//Remove the last card created
 				PScard.RemoveAt(PScard.Count - 1);
-
-				//Display error message
-				new messageWindow().ShowMessage(this, appName, errorMsg, "OK", null, true);
+				new messageWindow().ShowMessage(this, appName, e.Message, "OK", null, true);
 			}
 		}
 
@@ -461,7 +450,7 @@ namespace MemcardRex
 		//Save a Memory Card to a given filename
 		private void saveMemoryCard(int listIndex, string fileName, Type type)
 		{
-			if (PScard[listIndex].SaveTo(fileName, type))
+			if (PScard[listIndex].ExportTo(fileName, type))
 			{
 				refreshListView(listIndex, cardList[listIndex].SelectedIndices[0]);
 				refreshStatusStrip();
@@ -2114,7 +2103,7 @@ namespace MemcardRex
 			if (mainSettings.formatType == 0) frameNumber = 64;
 
 			//Create a new card by giving a null path
-			blankCard.openMemoryCard(null);
+			blankCard.Format();
 
 			//Check what device to use
 			switch (hardDevice)

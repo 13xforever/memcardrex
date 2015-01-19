@@ -69,7 +69,7 @@ namespace MemcardRex
 							assembliesMetadata.Add(currentMetadata);
 						}
 					}
-					catch (Exception)
+					catch
 					{
 						//Console.Write("rexDebug: " + ex.Message);
 					}
