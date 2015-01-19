@@ -373,20 +373,11 @@ namespace MemcardRex
 
 		private void LoadGmeComments()
 		{
-			//Clear existing data
-			SaveComments = new string[15];
-
-			//Load comments from gmeHeader to saveComments
-			byte[] tempByteArray;
+			var buffer = new byte[256];
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
-				tempByteArray = new byte[256];
-
-				for (var byteCount = 0; byteCount < 256; byteCount++)
-					tempByteArray[byteCount] = GmeHeader[byteCount + 64 + (256*slotNumber)];
-
-				//Set save comment for each slot
-				SaveComments[slotNumber] = Encoding.Default.GetString(tempByteArray);
+				Buffer.BlockCopy(GmeHeader, 64 + (256 * slotNumber), buffer, 0, 256);
+				SaveComments[slotNumber] = AnsiEncoding.GetString(buffer);
 			}
 		}
 
@@ -395,8 +386,8 @@ namespace MemcardRex
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
 				byte checkSum = 0;
-				for (var byteCount = 0; byteCount < 126; byteCount++)
-					checkSum ^= HeaderData[slotNumber, byteCount];
+				for (var i = 0; i < 127; i++)
+					checkSum ^= HeaderData[slotNumber, i];
 				HeaderData[slotNumber, 127] = checkSum;
 			}
 		}
