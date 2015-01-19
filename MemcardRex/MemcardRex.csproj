@@ -64,7 +64,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Enums\MemoryCardType.cs" />
+    <Compile Include="Enums\MemoryCardEnums.cs" />
     <Compile Include="UI\aboutWindow.cs">
       <SubType>Form</SubType>
     </Compile>

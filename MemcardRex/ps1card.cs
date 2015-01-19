@@ -287,53 +287,28 @@ namespace MemcardRex
 			return true;
 		}
 
-		//Set Product code, Identifier and Region in the header of the selected save
-		public void SetHeaderData(int slotNumber, string sProdCode, string sIdentifier, ushort sRegion)
+		public void SetHeaderData(int slotNumber, string productCode, string identifier, MemoryCardSaveRegion region)
 		{
-			//Temp array used for manipulation
-			byte[] tempByteArray;
+			Checks.CheckSaveSlotNumber(slotNumber);
 
-			//Merge Product code and Identifier
-			var headerString = sProdCode + sIdentifier;
-
-			//Convert string from UTF-16 to currently used codepage
-			tempByteArray = Encoding.Convert(Encoding.Unicode, Encoding.Default, Encoding.Unicode.GetBytes(headerString));
-
-			//Clear existing data from header
-			for (var byteCount = 0; byteCount < 20; byteCount++)
-				HeaderData[slotNumber, byteCount + 10] = 0x00;
-
-			//Inject new data to header
-			for (var byteCount = 0; byteCount < headerString.Length; byteCount++)
-				HeaderData[slotNumber, byteCount + 12] = tempByteArray[byteCount];
-
-			//Add region to header
-			HeaderData[slotNumber, 10] = (byte)(sRegion & 0xFF);
-			HeaderData[slotNumber, 11] = (byte)(sRegion >> 8);
-
-			//Reload data
-			LoadStringData();
-			LoadRegion();
-
-			//Calculate XOR
-			CalculateChecksums();
-
-			//Set changedFlag to edited
+			//todo: checks (10 + 8) and append with filler?
+			var headerString = productCode + identifier;
+			var headerStringBytes = Encoding.Convert(Encoding.Unicode, AnsiEncoding, Encoding.Unicode.GetBytes(headerString));
+			for (var i = 0; i < 20; i++)
+				HeaderData[slotNumber, 10 + i] = 0x00;
+			for (var i = 0; i < headerString.Length; i++)
+				HeaderData[slotNumber, 12 + i] = headerStringBytes[i];
+			HeaderData[slotNumber, 10] = (byte)((ushort)region & 0xFF);
+			HeaderData[slotNumber, 11] = (byte)(((ushort)region >> 8) & 0xFF);
 			ChangedFlag = true;
+			ParseEverything();
 		}
 
-		//Load region of the saves
 		private void LoadRegion()
 		{
-			//Clear existing data
-			SaveRegion = new MemoryCardSaveRegion[15];
-
-			//Cycle trough each slot
+			SaveRegion.Clear();
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-			{
-				//Store save region
 				SaveRegion[slotNumber] = (MemoryCardSaveRegion)((HeaderData[slotNumber, 11] << 8) | HeaderData[slotNumber, 10]);
-			}
 		}
 
 		//Load palette

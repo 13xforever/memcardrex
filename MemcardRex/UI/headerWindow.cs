@@ -15,7 +15,7 @@ namespace MemcardRex
 		//Save header data
 		public string prodCode;
 		public string saveIdentifier;
-		public ushort saveRegion;
+		public MemoryCardSaveRegion saveRegion;
 		public headerWindow() { InitializeComponent(); }
 		private void headerWindow_Load(object sender, EventArgs e) { }
 		//Initialize dialog by loading provided values
@@ -72,20 +72,20 @@ namespace MemcardRex
 				//Set the save region
 				switch (regionCombobox.SelectedIndex)
 				{
-					default: //Custom region
-						saveRegion = customSaveRegion;
+					default:
+						saveRegion = (MemoryCardSaveRegion)customSaveRegion;
 						break;
 
-					case 0: //America
-						saveRegion = 0x4142;
+					case 0:
+						saveRegion = MemoryCardSaveRegion.US;
 						break;
 
-					case 1: //Europe
-						saveRegion = 0x4542;
+					case 1:
+						saveRegion = MemoryCardSaveRegion.EU;
 						break;
 
-					case 2: //Japan
-						saveRegion = 0x4942;
+					case 2:
+						saveRegion = MemoryCardSaveRegion.JP;
 						break;
 				}
 

@@ -51,5 +51,13 @@ namespace Tests
 			Assert.That(newArray, Is.EqualTo(oldArray));
 			Assert.That(bitConverter, Is.EqualTo(oldArray));
 		}
+
+		[Test]
+		public void EnumTest()
+		{
+			ushort customRegion = 1;
+			var invalidMemoryCardSaveRegion = (MemoryCardSaveRegion)customRegion;
+			Assert.That((ushort)invalidMemoryCardSaveRegion, Is.EqualTo(customRegion));
+		}
 	}
 }
