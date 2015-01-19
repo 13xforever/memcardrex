@@ -317,72 +317,42 @@ namespace MemcardRex
 					IconPalette[slotNumber, colorIdx] = Palette.GetColorFromRgba5551(SaveData, slotNumber, 96 + colorIdx*2);
 		}
 
-		//Load the icons
 		private void LoadIcons()
 		{
-			var byteCount = 0;
-
-			//Clear existing data
-			IconData = new Bitmap[15, 3];
-
-			//Cycle through each slot
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-			{
-				//Each save has 3 icons (some are data but those will not be shown)
-				for (var iconNumber = 0; iconNumber < 3; iconNumber++)
+				for (var iconNumber = 0; iconNumber < 3; iconNumber++) //Each save has 3 icons (some are data but those will not be shown)
 				{
 					IconData[slotNumber, iconNumber] = new Bitmap(16, 16);
-					byteCount = 128 + (128*iconNumber);
-
+					var idx = 128 + (128*iconNumber);
 					for (var y = 0; y < 16; y++)
-					{
 						for (var x = 0; x < 16; x += 2)
 						{
-							IconData[slotNumber, iconNumber].SetPixel(x, y, IconPalette[slotNumber, SaveData[slotNumber, byteCount] & 0xF]);
-							IconData[slotNumber, iconNumber].SetPixel(x + 1, y, IconPalette[slotNumber, SaveData[slotNumber, byteCount] >> 4]);
-							byteCount++;
+							IconData[slotNumber, iconNumber].SetPixel(x, y, IconPalette[slotNumber, SaveData[slotNumber, idx] & 0x0F]);
+							IconData[slotNumber, iconNumber].SetPixel(x + 1, y, IconPalette[slotNumber, SaveData[slotNumber, idx] >> 4]);
+							idx++;
 						}
-					}
 				}
-			}
 		}
 
-		//Get icon data as bytes
 		public byte[] GetIconBytes(int slotNumber)
 		{
-			var iconBytes = new byte[416];
-
-			//Copy bytes from the given slot
-			for (var i = 0; i < 416; i++)
-				iconBytes[i] = SaveData[slotNumber, i + 96];
-
+			var iconBytes = new byte[32 + 3*128];
+			for (var i = 0; i < iconBytes.Length; i++)
+				iconBytes[i] = SaveData[slotNumber, 96 + i];
 			return iconBytes;
 		}
 
-		//Set icon data to saveData
 		public void SetIconBytes(int slotNumber, byte[] iconBytes)
 		{
-			//Set bytes from the given slot
-			for (var i = 0; i < 416; i++)
-				SaveData[slotNumber, i + 96] = iconBytes[i];
-
-			//Reload data
-			LoadPalette();
-			LoadIcons();
-
-			//Set changedFlag to edited
+			for (var i = 0; i < 416; i++) // 32 + 3*128
+				SaveData[slotNumber, 96 + i] = iconBytes[i];
 			ChangedFlag = true;
+			ParseEverything();
 		}
 
-		//Load icon frames
 		private void LoadIconFrames()
 		{
-			//Clear existing data
-			IconFrames = new int[15];
-
-			//Cycle through each slot
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-			{
 				switch (SaveData[slotNumber, 2])
 				{
 					case 0x11: //1 frame
@@ -397,10 +367,8 @@ namespace MemcardRex
 						IconFrames[slotNumber] = 3;
 						break;
 
-					default: //No frames (save data is probably clean)
-						break;
+					//No frames (save data is probably clean)
 				}
-			}
 		}
 
 		private void LoadGmeComments()
