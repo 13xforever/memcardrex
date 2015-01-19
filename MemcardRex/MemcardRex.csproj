@@ -94,7 +94,7 @@
     <Compile Include="UI\cardReaderWindow.designer.cs">
       <DependentUpon>cardReaderWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="glassSupport.cs" />
+    <Compile Include="Utils\glassSupport.cs" />
     <Compile Include="UI\headerWindow.cs">
       <SubType>Form</SubType>
     </Compile>
