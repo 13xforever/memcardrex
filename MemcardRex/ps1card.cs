@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Text;
 using MemcardRex.Enums;
+using MemcardRex.Utils;
 
 namespace MemcardRex
 {
@@ -49,7 +50,7 @@ namespace MemcardRex
 
 		private void CreateRawCardInternal()
 		{
-			Array.Clear(rawData,0, rawData.Length);
+			rawData.Clear();
 
 			// signature
 			rawData[0] = 0x4D;   // M
@@ -85,7 +86,7 @@ namespace MemcardRex
 
 		private void CreateGmeHeader()
 		{
-			Array.Clear(GmeHeader, 0, GmeHeader.Length);
+			GmeHeader.Clear();
 
 			// signature
 			var signature = Encoding.ASCII.GetBytes("123-456-STD");
@@ -109,29 +110,23 @@ namespace MemcardRex
 			}
 		}
 
-		//Recreate VGS header
 		private byte[] GetVgsHeader()
 		{
 			var vgsHeader = new byte[64];
 
-			//Fill in the signature
-			vgsHeader[0] = 0x56; //V
-			vgsHeader[1] = 0x67; //g
-			vgsHeader[2] = 0x73; //s
-			vgsHeader[3] = 0x4D; //M
-
+			// signature
+			var signature = Encoding.ASCII.GetBytes("VgsM");
+			Buffer.BlockCopy(signature, 0, vgsHeader, 0, signature.Length);
 			vgsHeader[4] = 0x1;
 			vgsHeader[8] = 0x1;
 			vgsHeader[12] = 0x1;
 			vgsHeader[17] = 0x2;
-
 			return vgsHeader;
 		}
 
-		//Get the type of the save slots
 		private void LoadSlotTypes()
 		{
-			SaveType = new MemoryCardSaveType[15]; //Clear existing data
+			SaveType.Clear();
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
 				switch (HeaderData[slotNumber, 0])
