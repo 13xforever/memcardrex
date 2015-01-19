@@ -610,8 +610,6 @@ namespace MemcardRex
 							informationDlg.ShowDialog(this);
 						}
 						break;
-					default: //Not allowed
-						break;
 				}
 			}
 		}
@@ -816,9 +814,6 @@ namespace MemcardRex
 				//Check the save type
 				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default:
-						break;
-
 					case MemoryCardSaveType.Initial:
 						byte singleSaveType = 0;
 

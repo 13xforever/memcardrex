@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -18,10 +19,9 @@ namespace MemcardRex
 		public informationWindow() { InitializeComponent(); }
 		private void OKbutton_Click(object sender, EventArgs e) { Close(); }
 		//Initialize default values
-		public void initializeDialog(string saveTitle, string saveProdCode, string saveIdentifier, MemoryCardSaveRegion saveRegion, int saveSize, int iconFrames, int interpolationMode, int iconPropertiesSize, Bitmap[] saveIcons, int[] slotNumbers, int backColor)
+		public void initializeDialog(string saveTitle, string saveProdCode, string saveIdentifier, MemoryCardSaveRegion saveRegion, int saveSize, int iconFrames, int interpolationMode, int iconPropertiesSize, Bitmap[] saveIcons, IList<int> slotNumbers, int backColor)
 		{
 			string ocupiedSlots = null;
-
 			iconInterpolationMode = interpolationMode;
 			iconSize = iconPropertiesSize;
 			saveTitleLabel.Text = saveTitle;
@@ -54,7 +54,7 @@ namespace MemcardRex
 			}
 
 			//Get ocupied slots
-			for (var i = 0; i < slotNumbers.Length; i++)
+			for (var i = 0; i < slotNumbers.Count; i++)
 			{
 				ocupiedSlots += (slotNumbers[i] + 1) + ", ";
 			}

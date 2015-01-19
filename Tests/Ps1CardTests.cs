@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using MemcardRex;
 using MemcardRex.Enums;
@@ -19,6 +21,16 @@ namespace Tests
 
 			var expected = new byte[] {0x31, 0x32, 0x33, 0x2D, 0x34, 0x35, 0x36, 0x2D, 0x53, 0x54, 0x44}; // 123-456-STD
 			Assert.That(card.GmeHeader.Take(expected.Length), Is.EqualTo(expected));
+		}
+
+		[Test]
+		public void VarianceTest()
+		{
+			Action<IList<int>> action = l => { Console.WriteLine(l.Count); };
+			var array = new int[10];
+			var list = new List<int>(10);
+			action(array);
+			action(list);
 		}
 	}
 }

@@ -150,6 +150,18 @@ namespace MemcardRex
 				SaveSize[slotNumber] = (HeaderData[slotNumber, 4] | (HeaderData[slotNumber, 5] << 8) | (HeaderData[slotNumber, 6] << 16))/1024;
 		}
 
+		private void ParseEverything()
+		{
+			CalculateChecksums();
+			LoadStringData();
+			LoadSlotTypes();
+			LoadRegion();
+			CalculateSaveSize();
+			LoadPalette();
+			LoadIcons();
+			LoadIconFrames();
+		}
+
 		public void ToggleDeleteSave(int slotNumber)
 		{
 			var saveSlots = FindSaveLinks(slotNumber);
@@ -178,80 +190,54 @@ namespace MemcardRex
 				}
 				HeaderData[slot, 0] = (byte)SaveType[slot];
 			}
-			CalculateChecksums();
 			ChangedFlag = true;
+			ParseEverything();
 		}
 
-		//Format save
 		public void FormatSave(int slotNumber)
 		{
-			//Get all linked saves
-			var saveSlots = FindSaveLinks(slotNumber);
+			Checks.CheckSaveSlotNumber(slotNumber);
 
-			//Cycle through each slot
-			for (var i = 0; i < saveSlots.Length; i++)
-			{
-				formatSlot(saveSlots[i]);
-			}
-
-			//Reload data
-			CalculateChecksums();
-			LoadStringData();
-			LoadSlotTypes();
-			LoadRegion();
-			CalculateSaveSize();
-			LoadPalette();
-			LoadIcons();
-			LoadIconFrames();
-
-			//Set changedFlag to edited
+			var saveSlots = FindSaveLinks((byte)slotNumber);
+			foreach (var slot in saveSlots)
+				FormatSlot(slot);
 			ChangedFlag = true;
+			ParseEverything();
 		}
 
-		//Find and return all save links
-		public int[] FindSaveLinks(int initialSlotNumber)
+		public List<int> FindSaveLinks(int initialSlotNumber)
 		{
-			var tempSlotList = new List<int>();
-			var currentSlot = initialSlotNumber;
+			Checks.CheckSaveSlotNumber(initialSlotNumber);
 
-			//Maximum number of cycles is 15
+			var result = new List<int>();
+			var slotIdx = initialSlotNumber;
 			for (var i = 0; i < 15; i++)
 			{
-				//Add current slot to the list
-				tempSlotList.Add(currentSlot);
+				if (slotIdx > 15) break;
 
-				//Check if next slot pointer overflows
-				if (currentSlot > 15) break;
-
+				result.Add(slotIdx);
 				//Check if current slot is corrupted
-				if (!Enum.IsDefined(typeof(MemoryCardSaveType), SaveType[currentSlot])) break;
+				if (!Enum.IsDefined(typeof(MemoryCardSaveType), SaveType[slotIdx])) break;
 
-				//Check if pointer points to the next save
-				if (HeaderData[currentSlot, 8] == 0xFF) break;
-				currentSlot = HeaderData[currentSlot, 8];
+				slotIdx = HeaderData[slotIdx, 8];
+				if (slotIdx == 0xFF) break;
 			}
-
-			//Return int array
-			return tempSlotList.ToArray();
+			return result;
 		}
 
-		//Find and return continuous free slots
-		private int[] FindFreeSlots(int slotNumber, int slotCount)
+		private List<int> FindContinuousFreeSlots(int slotNumber, int slotCount)
 		{
-			var tempSlotList = new List<int>();
+			Checks.CheckSaveSlotNumber(slotNumber);
 
-			//Cycle through available slots
-			for (var i = slotNumber; i < (slotNumber + slotCount); i++)
+			var result = new List<int>();
+			for (var i = slotNumber; i < 15 && i < (slotNumber + slotCount); i++)
 			{
-				if (SaveType[i] == 0) tempSlotList.Add(i);
-				else break;
-
-				//Exit if next save would be over the limit of 15
-				if (slotNumber + slotCount > 15) break;
+				if (SaveType[i] == MemoryCardSaveType.Formatted)
+					result.Add(i);
+				else
+					break;
 			}
-
-			//Return int array
-			return tempSlotList.ToArray();
+			return result;
 		}
 
 		//Return all bytes of the specified save
@@ -261,14 +247,14 @@ namespace MemcardRex
 			var saveSlots = FindSaveLinks(slotNumber);
 
 			//Calculate the number of bytes needed to store the save
-			var saveBytes = new byte[8320 + ((saveSlots.Length - 1)*8192)];
+			var saveBytes = new byte[8320 + ((saveSlots.Count - 1)*8192)];
 
 			//Copy save header
 			for (var i = 0; i < 128; i++)
 				saveBytes[i] = HeaderData[saveSlots[0], i];
 
 			//Copy save data
-			for (var sNumber = 0; sNumber < saveSlots.Length; sNumber++)
+			for (var sNumber = 0; sNumber < saveSlots.Count; sNumber++)
 			{
 				for (var i = 0; i < 8192; i++)
 					saveBytes[128 + (sNumber*8192) + i] = SaveData[saveSlots[sNumber], i];
@@ -283,13 +269,12 @@ namespace MemcardRex
 		{
 			//Number of slots to set
 			var slotCount = (saveBytes.Length - 128)/8192;
-			var freeSlots = FindFreeSlots(slotNumber, slotCount);
+			var freeSlots = FindContinuousFreeSlots(slotNumber, slotCount);
 			var numberOfBytes = slotCount*8192;
-			;
 			reqSlots = slotCount;
 
 			//Check if there are enough free slots for the operation
-			if (freeSlots.Length < slotCount) return false;
+			if (freeSlots.Count < slotCount) return false;
 
 			//Place header data
 			for (var i = 0; i < 128; i++)
@@ -312,7 +297,8 @@ namespace MemcardRex
 
 			//Recreate header data
 			//Set pointer to all slots except the last
-			for (var i = 0; i < (freeSlots.Length - 1); i++)
+			var lastFreeSlotIdx = freeSlots.Count - 1;
+			for (var i = 0; i < lastFreeSlotIdx; i++)
 			{
 				HeaderData[freeSlots[i], 0] = 0x52;
 				HeaderData[freeSlots[i], 8] = (byte)freeSlots[i + 1];
@@ -320,9 +306,9 @@ namespace MemcardRex
 			}
 
 			//Add final slot pointer to the last slot in the link
-			HeaderData[freeSlots[freeSlots.Length - 1], 0] = 0x53;
-			HeaderData[freeSlots[freeSlots.Length - 1], 8] = 0xFF;
-			HeaderData[freeSlots[freeSlots.Length - 1], 9] = 0xFF;
+			HeaderData[freeSlots[lastFreeSlotIdx], 0] = 0x53;
+			HeaderData[freeSlots[lastFreeSlotIdx], 8] = 0xFF;
+			HeaderData[freeSlots[lastFreeSlotIdx], 9] = 0xFF;
 
 			//Add initial saveType to the first slot
 			HeaderData[freeSlots[0], 0] = 0x51;
@@ -543,7 +529,7 @@ namespace MemcardRex
 		}
 
 		//Format a specified slot (Data MUST be reloaded after the use of this function)
-		private void formatSlot(int slotNumber)
+		private void FormatSlot(int slotNumber)
 		{
 			//Clear headerData
 			for (var byteCount = 0; byteCount < 128; byteCount++)
@@ -566,7 +552,7 @@ namespace MemcardRex
 		{
 			//Format each slot in Memory Card
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-				formatSlot(slotNumber);
+				FormatSlot(slotNumber);
 
 			//Reload data
 			CalculateChecksums();
