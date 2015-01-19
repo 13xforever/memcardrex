@@ -83,7 +83,7 @@ namespace MemcardRex
 		private programSettings mainSettings;
 
 		//List of opened Memory Cards
-		private readonly List<ps1card> PScard = new List<ps1card>();
+		private readonly List<Ps1Card> PScard = new List<Ps1Card>();
 
 		//Listview of the opened Memory Cards
 		private readonly List<ListView> cardList = new List<ListView>();
@@ -351,7 +351,7 @@ namespace MemcardRex
 			}
 
 			//Create a new card
-			PScard.Add(new ps1card());
+			PScard.Add(new Ps1Card());
 
 			//Try to open card
 			errorMsg = PScard[PScard.Count - 1].openMemoryCard(fileName);
@@ -459,7 +459,7 @@ namespace MemcardRex
 		//Save a Memory Card to a given filename
 		private void saveMemoryCard(int listIndex, string fileName, MemoryCardType memoryCardType)
 		{
-			if (PScard[listIndex].saveMemoryCard(fileName, memoryCardType))
+			if (PScard[listIndex].SaveTo(fileName, memoryCardType))
 			{
 				refreshListView(listIndex, cardList[listIndex].SelectedIndices[0]);
 				refreshStatusStrip();
@@ -605,7 +605,7 @@ namespace MemcardRex
 						using (var informationDlg = new informationWindow())
 						{
 							//Load values to dialog
-							informationDlg.initializeDialog(saveTitle, saveProdCode, saveIdentifier, saveRegion, saveSize, iconFrames, mainSettings.iconInterpolationMode, mainSettings.iconPropertiesSize, saveIcons, PScard[listIndex].findSaveLinks(slotNumber),
+							informationDlg.initializeDialog(saveTitle, saveProdCode, saveIdentifier, saveRegion, saveSize, iconFrames, mainSettings.iconInterpolationMode, mainSettings.iconPropertiesSize, saveIcons, PScard[listIndex].FindSaveLinks(slotNumber),
 								mainSettings.iconBackgroundColor);
 							informationDlg.ShowDialog(this);
 						}
@@ -630,7 +630,7 @@ namespace MemcardRex
 				switch (PScard[listIndex].SaveType[slotNumber])
 				{
 					case MemoryCardSaveType.DeletedInitial:
-						PScard[listIndex].toggleDeleteSave(slotNumber);
+						PScard[listIndex].ToggleDeleteSave(slotNumber);
 						refreshListView(listIndex, slotNumber);
 						break;
 
@@ -665,7 +665,7 @@ namespace MemcardRex
 				switch (PScard[listIndex].SaveType[slotNumber])
 				{
 					case MemoryCardSaveType.Initial:
-						PScard[listIndex].toggleDeleteSave(slotNumber);
+						PScard[listIndex].ToggleDeleteSave(slotNumber);
 						refreshListView(listIndex, slotNumber);
 						break;
 
@@ -702,7 +702,7 @@ namespace MemcardRex
 					default: //Slot is either initial, deleted initial or corrupted so it can be safetly formatted
 						if (new messageWindow().ShowMessage(this, appName, "Formatted slots cannot be restored.\nDo you want to proceed with this operation?", "No", "Yes", true) == "Yes")
 						{
-							PScard[listIndex].formatSave(slotNumber);
+							PScard[listIndex].FormatSave(slotNumber);
 							refreshListView(listIndex, slotNumber);
 						}
 						break;
@@ -736,7 +736,7 @@ namespace MemcardRex
 				{
 					case MemoryCardSaveType.Initial:
 					case MemoryCardSaveType.DeletedInitial:
-						tempBuffer = PScard[listIndex].getSaveBytes(slotNumber);
+						tempBuffer = PScard[listIndex].GetSaveBytes(slotNumber);
 						tempBufferName = PScard[listIndex].SaveName[slotNumber, 0];
 
 						//Show temp buffer toolbar info
@@ -779,7 +779,7 @@ namespace MemcardRex
 					//Check if the slot to paste the save on is free
 					if (PScard[listIndex].SaveType[slotNumber] == 0)
 					{
-						if (PScard[listIndex].setSaveBytes(slotNumber, tempBuffer, out requiredSlots))
+						if (PScard[listIndex].SetSaveBytes(slotNumber, tempBuffer, out requiredSlots))
 						{
 							refreshListView(listIndex, slotNumber);
 						}
@@ -972,7 +972,7 @@ namespace MemcardRex
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 				var iconFrames = PScard[listIndex].IconFrames[slotNumber];
 				var saveTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
-				var iconBytes = PScard[listIndex].getIconBytes(slotNumber);
+				var iconBytes = PScard[listIndex].GetIconBytes(slotNumber);
 
 				//Check the save type
 				switch (PScard[listIndex].SaveType[slotNumber])
@@ -986,7 +986,7 @@ namespace MemcardRex
 						//Update data if OK has been pressed
 						if (iconDlg.okPressed)
 						{
-							PScard[listIndex].setIconBytes(slotNumber, iconDlg.iconData);
+							PScard[listIndex].SetIconBytes(slotNumber, iconDlg.iconData);
 							refreshListView(listIndex, slotNumber);
 						}
 
@@ -1259,7 +1259,7 @@ namespace MemcardRex
 						if (headerDlg.okPressed)
 						{
 							//Insert data to save header of the selected card and slot
-							PScard[listIndex].setHeaderData(slotNumber, headerDlg.prodCode, headerDlg.saveIdentifier, headerDlg.saveRegion);
+							PScard[listIndex].SetHeaderData(slotNumber, headerDlg.prodCode, headerDlg.saveIdentifier, headerDlg.saveRegion);
 							refreshListView(listIndex, slotNumber);
 						}
 						headerDlg.Dispose();
@@ -1380,14 +1380,14 @@ namespace MemcardRex
 				var listIndex = mainTabControl.SelectedIndex;
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 				var reqSlots = 0;
-				var editedSaveBytes = pluginSystem.editSaveData(supportedPlugins[pluginIndex], PScard[listIndex].getSaveBytes(slotNumber), PScard[listIndex].SaveProductCode[slotNumber]);
+				var editedSaveBytes = pluginSystem.editSaveData(supportedPlugins[pluginIndex], PScard[listIndex].GetSaveBytes(slotNumber), PScard[listIndex].SaveProductCode[slotNumber]);
 
 				if (editedSaveBytes != null)
 				{
 					//Delete save so the edited one can be placed in.
-					PScard[listIndex].formatSave(slotNumber);
+					PScard[listIndex].FormatSave(slotNumber);
 
-					PScard[listIndex].setSaveBytes(slotNumber, editedSaveBytes, out reqSlots);
+					PScard[listIndex].SetSaveBytes(slotNumber, editedSaveBytes, out reqSlots);
 
 					//Refresh the list with new data
 					refreshListView(listIndex, slotNumber);
@@ -1603,7 +1603,7 @@ namespace MemcardRex
 					case MemoryCardSaveType.DeletedInitial:
 
 						//Get data to work with
-						fetchedData = PScard[listIndex].getSaveBytes(slotNumber);
+						fetchedData = PScard[listIndex].GetSaveBytes(slotNumber);
 						fetchedDataTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
 
 						//Check if selected saves have the same size
@@ -1635,10 +1635,10 @@ namespace MemcardRex
 			if (readData != null)
 			{
 				//Create a new card
-				PScard.Add(new ps1card());
+				PScard.Add(new Ps1Card());
 
 				//Fill the card with the new data
-				PScard[PScard.Count - 1].openMemoryCardStream(readData);
+				PScard[PScard.Count - 1].LoadMemoryCard(readData);
 
 				//Temporary set a bogus file location (to fool filterNullCard function)
 				PScard[PScard.Count - 1].CardLocation = "\0";
@@ -2032,7 +2032,7 @@ namespace MemcardRex
 			if (PScard.Count > 0)
 			{
 				//Open a DexDrive communication window
-				new cardReaderWindow().writeMemoryCardDexDrive(this, appName, mainSettings.communicationPort, PScard[listIndex].saveMemoryCardStream(), 1024);
+				new cardReaderWindow().writeMemoryCardDexDrive(this, appName, mainSettings.communicationPort, PScard[listIndex].GetRawMemoryCard(), 1024);
 			}
 		}
 
@@ -2065,7 +2065,7 @@ namespace MemcardRex
 			if (PScard.Count > 0)
 			{
 				//Open a DexDrive communication window
-				new cardReaderWindow().writeMemoryCardCARDuino(this, appName, mainSettings.communicationPort, PScard[listIndex].saveMemoryCardStream(), 1024);
+				new cardReaderWindow().writeMemoryCardCARDuino(this, appName, mainSettings.communicationPort, PScard[listIndex].GetRawMemoryCard(), 1024);
 			}
 		}
 
@@ -2086,7 +2086,7 @@ namespace MemcardRex
 			if (PScard.Count > 0)
 			{
 				//Open a DexDrive communication window
-				new cardReaderWindow().writeMemoryCardPS1CLnk(this, appName, mainSettings.communicationPort, PScard[listIndex].saveMemoryCardStream(), 1024);
+				new cardReaderWindow().writeMemoryCardPS1CLnk(this, appName, mainSettings.communicationPort, PScard[listIndex].GetRawMemoryCard(), 1024);
 			}
 		}
 
@@ -2115,7 +2115,7 @@ namespace MemcardRex
 			if (new messageWindow().ShowMessage(this, appName, "Formatting will delete all saves on the Memory Card.\nDo you want to proceed with this operation?", "No", "Yes", true) == "No") return;
 
 			var frameNumber = 1024;
-			var blankCard = new ps1card();
+			var blankCard = new Ps1Card();
 
 			//Check if quick format option is turned on
 			if (mainSettings.formatType == 0) frameNumber = 64;
@@ -2127,15 +2127,15 @@ namespace MemcardRex
 			switch (hardDevice)
 			{
 				case 0: //DexDrive
-					new cardReaderWindow().writeMemoryCardDexDrive(this, appName, mainSettings.communicationPort, blankCard.saveMemoryCardStream(), frameNumber);
+					new cardReaderWindow().writeMemoryCardDexDrive(this, appName, mainSettings.communicationPort, blankCard.GetRawMemoryCard(), frameNumber);
 					break;
 
 				case 1: //MemCARDuino
-					new cardReaderWindow().writeMemoryCardCARDuino(this, appName, mainSettings.communicationPort, blankCard.saveMemoryCardStream(), frameNumber);
+					new cardReaderWindow().writeMemoryCardCARDuino(this, appName, mainSettings.communicationPort, blankCard.GetRawMemoryCard(), frameNumber);
 					break;
 
 				case 2: //PS1CardLink
-					new cardReaderWindow().writeMemoryCardPS1CLnk(this, appName, mainSettings.communicationPort, blankCard.saveMemoryCardStream(), frameNumber);
+					new cardReaderWindow().writeMemoryCardPS1CLnk(this, appName, mainSettings.communicationPort, blankCard.GetRawMemoryCard(), frameNumber);
 					break;
 			}
 		}

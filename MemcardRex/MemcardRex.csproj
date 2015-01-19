@@ -202,7 +202,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="ps1card.cs" />
+    <Compile Include="Ps1Card.cs" />
     <Compile Include="rexPluginSystem.cs" />
     <Compile Include="sjisConverter.cs" />
   </ItemGroup>

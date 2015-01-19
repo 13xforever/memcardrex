@@ -10,16 +10,19 @@ using MemcardRex.Enums;
 
 namespace MemcardRex
 {
-	internal class ps1card
+	public class Ps1Card
 	{
+		public const int MemoryCardSize = 128*1024;
+		public const int GmeHeaderSize = 3904;
+
 		private readonly charConverter sjisConverter = new charConverter();
-		private byte[] rawMemoryCard = new byte[131072]; //Complete Memory Card in the raw format (131072 bytes)
+		private byte[] rawData = new byte[MemoryCardSize];
 
 		public string CardLocation; //path + filename
 		public string CardName;
 		public MemoryCardType CardType;
 		public bool ChangedFlag; //Flag used to determine if the card has been edited since the last saving
-		public byte[] GmeHeader = new byte[3904]; //Header data for the GME Memory Card
+		public byte[] GmeHeader = new byte[GmeHeaderSize]; //Header data for the GME Memory Card
 		public byte[,] HeaderData = new byte[15, 128]; //15 slots (128 bytes each)
 		public Bitmap[,] IconData = new Bitmap[15, 3];//15 slots, 3 icons per slot, (16*16px icons)
 		public int[] IconFrames = new int[15];
@@ -32,93 +35,64 @@ namespace MemcardRex
 		public MemoryCardSaveRegion[] SaveRegion = new MemoryCardSaveRegion[15];
 		public int[] SaveSize = new int[15]; //Size of the save in KBs
 		public MemoryCardSaveType[] SaveType = new MemoryCardSaveType[15];
-		//Load Data from raw Memory Card
-		private void LoadDataFromRawCard()
+
+		private void ParseRawCardInternal()
 		{
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
-				//Load header data
 				for (var currentByte = 0; currentByte < 128; currentByte++)
-				{
-					HeaderData[slotNumber, currentByte] = rawMemoryCard[128 + (slotNumber*128) + currentByte];
-				}
-
-				//Load save data
+					HeaderData[slotNumber, currentByte] = rawData[128 + (slotNumber*128) + currentByte];
 				for (var currentByte = 0; currentByte < 8192; currentByte++)
-				{
-					SaveData[slotNumber, currentByte] = rawMemoryCard[8192 + (slotNumber*8192) + currentByte];
-				}
+					SaveData[slotNumber, currentByte] = rawData[8192 + (slotNumber*8192) + currentByte];
 			}
 		}
 
-		//Recreate raw Memory Card
-		private void loadDataToRawCard()
+		private void CreateRawCardInternal()
 		{
-			//Clear existing data
-			rawMemoryCard = new byte[131072];
+			Array.Clear(rawData,0, rawData.Length);
 
-			//Recreate the signature
-			rawMemoryCard[0] = 0x4D; //M
-			rawMemoryCard[1] = 0x43; //C
-			rawMemoryCard[127] = 0x0E; //XOR (precalculated)
+			// signature
+			rawData[0] = 0x4D;   // M
+			rawData[1] = 0x43;   // C
+			rawData[127] = 0x0E; // pre-calculated checksum
+			rawData[8064] = 0x4D;
+			rawData[8065] = 0x43;
+			rawData[8191] = 0x0E;
 
-			rawMemoryCard[8064] = 0x4D; //M
-			rawMemoryCard[8065] = 0x43; //C
-			rawMemoryCard[8191] = 0x0E; //XOR (precalculated)
-
+			// data
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
-				//Load header data
 				for (var currentByte = 0; currentByte < 128; currentByte++)
-				{
-					rawMemoryCard[128 + (slotNumber*128) + currentByte] = HeaderData[slotNumber, currentByte];
-				}
-
-				//Load save data
+					rawData[128 + (slotNumber*128) + currentByte] = HeaderData[slotNumber, currentByte];
 				for (var currentByte = 0; currentByte < 8192; currentByte++)
-				{
-					rawMemoryCard[8192 + (slotNumber*8192) + currentByte] = SaveData[slotNumber, currentByte];
-				}
+					rawData[8192 + (slotNumber*8192) + currentByte] = SaveData[slotNumber, currentByte];
 			}
 
-			//Create authentic data (just for completeness)
+			// create authentic data (just for completeness)
 			for (var i = 0; i < 20; i++)
 			{
-				//Reserved slot typed
-				rawMemoryCard[2048 + (i*128)] = 0xFF;
-				rawMemoryCard[2048 + (i*128) + 1] = 0xFF;
-				rawMemoryCard[2048 + (i*128) + 2] = 0xFF;
-				rawMemoryCard[2048 + (i*128) + 3] = 0xFF;
+				// reserved slot typed
+				rawData[2048 + (i*128)] = 0xFF;
+				rawData[2048 + (i*128) + 1] = 0xFF;
+				rawData[2048 + (i*128) + 2] = 0xFF;
+				rawData[2048 + (i*128) + 3] = 0xFF;
 
-				//Next slot pointer doesn't point to anything
-				rawMemoryCard[2048 + (i*128) + 8] = 0xFF;
-				rawMemoryCard[2048 + (i*128) + 9] = 0xFF;
+				// next slot pointer doesn't point to anything
+				rawData[2048 + (i*128) + 8] = 0xFF;
+				rawData[2048 + (i*128) + 9] = 0xFF;
 			}
 		}
 
-		//Recreate GME header(add signature, slot description and comments)
-		private void fillGmeHeader()
+		private void CreateGmeHeader()
 		{
-			byte[] tempByteArray;
+			Array.Clear(GmeHeader, 0, GmeHeader.Length);
 
-			//Clear existing data
-			GmeHeader = new byte[3904];
+			// signature
+			var signature = Encoding.ASCII.GetBytes("123-456-STD");
+			Buffer.BlockCopy(signature, 0, GmeHeader, 0, signature.Length);
 
-			//Fill in the signature
-			GmeHeader[0] = 0x31; //1
-			GmeHeader[1] = 0x32; //2
-			GmeHeader[2] = 0x33; //3
-			GmeHeader[3] = 0x2D; //-
-			GmeHeader[4] = 0x34; //4
-			GmeHeader[5] = 0x35; //5
-			GmeHeader[6] = 0x36; //6
-			GmeHeader[7] = 0x2D; //-
-			GmeHeader[8] = 0x53; //S
-			GmeHeader[9] = 0x54; //T
-			GmeHeader[10] = 0x44; //D
-
-			GmeHeader[18] = 0x1;
-			GmeHeader[20] = 0x1;
+			GmeHeader[18] = 0x01; //todo: magic numbers or checksum?
+			GmeHeader[20] = 0x01;
 			GmeHeader[21] = 0x4D; //M
 
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
@@ -127,7 +101,7 @@ namespace MemcardRex
 				GmeHeader[38 + slotNumber] = HeaderData[slotNumber, 8];
 
 				//Convert string from UTF-16 to currently used codepage
-				tempByteArray = Encoding.Convert(Encoding.Unicode, Encoding.Default, Encoding.Unicode.GetBytes(SaveComments[slotNumber]));
+				var tempByteArray = Encoding.Convert(Encoding.Unicode, Encoding.Default, Encoding.Unicode.GetBytes(SaveComments[slotNumber])); //todo: should it be hard-coded windows-1252 or similar?
 
 				//Inject comments to GME header
 				for (var byteCount = 0; byteCount < tempByteArray.Length; byteCount++)
@@ -136,7 +110,7 @@ namespace MemcardRex
 		}
 
 		//Recreate VGS header
-		private byte[] getVGSheader()
+		private byte[] GetVgsHeader()
 		{
 			var vgsHeader = new byte[64];
 
@@ -155,7 +129,7 @@ namespace MemcardRex
 		}
 
 		//Get the type of the save slots
-		private void loadSlotTypes()
+		private void LoadSlotTypes()
 		{
 			SaveType = new MemoryCardSaveType[15]; //Clear existing data
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
@@ -198,7 +172,7 @@ namespace MemcardRex
 		}
 
 		//Load Save name, Product code and Identifier from the header data
-		private void loadStringData()
+		private void LoadStringData()
 		{
 			//Temp array used for conversion
 			byte[] tempByteArray;
@@ -247,7 +221,7 @@ namespace MemcardRex
 		}
 
 		//Load size of each slot in KB
-		private void loadSaveSize()
+		private void LoadSaveSize()
 		{
 			//Clear existing data
 			SaveSize = new int[15];
@@ -258,10 +232,10 @@ namespace MemcardRex
 		}
 
 		//Toggle deleted/undeleted status
-		public void toggleDeleteSave(int slotNumber)
+		public void ToggleDeleteSave(int slotNumber)
 		{
 			//Get all linked saves
-			var saveSlots = findSaveLinks(slotNumber);
+			var saveSlots = FindSaveLinks(slotNumber);
 
 			//Cycle through each slot
 			for (var i = 0; i < saveSlots.Length; i++)
@@ -292,25 +266,22 @@ namespace MemcardRex
 					case MemoryCardSaveType.DeletedEndLink:
 						HeaderData[saveSlots[i], 0] = 0x53;
 						break;
-
-					default:
-						break;
 				}
 			}
 
 			//Reload data
-			calculateXOR();
-			loadSlotTypes();
+			CalculateChecksums();
+			LoadSlotTypes();
 
 			//Memory Card is changed
 			ChangedFlag = true;
 		}
 
 		//Format save
-		public void formatSave(int slotNumber)
+		public void FormatSave(int slotNumber)
 		{
 			//Get all linked saves
-			var saveSlots = findSaveLinks(slotNumber);
+			var saveSlots = FindSaveLinks(slotNumber);
 
 			//Cycle through each slot
 			for (var i = 0; i < saveSlots.Length; i++)
@@ -319,21 +290,21 @@ namespace MemcardRex
 			}
 
 			//Reload data
-			calculateXOR();
-			loadStringData();
-			loadSlotTypes();
-			loadRegion();
-			loadSaveSize();
-			loadPalette();
-			loadIcons();
-			loadIconFrames();
+			CalculateChecksums();
+			LoadStringData();
+			LoadSlotTypes();
+			LoadRegion();
+			LoadSaveSize();
+			LoadPalette();
+			LoadIcons();
+			LoadIconFrames();
 
 			//Set changedFlag to edited
 			ChangedFlag = true;
 		}
 
 		//Find and return all save links
-		public int[] findSaveLinks(int initialSlotNumber)
+		public int[] FindSaveLinks(int initialSlotNumber)
 		{
 			var tempSlotList = new List<int>();
 			var currentSlot = initialSlotNumber;
@@ -360,7 +331,7 @@ namespace MemcardRex
 		}
 
 		//Find and return continuous free slots
-		private int[] findFreeSlots(int slotNumber, int slotCount)
+		private int[] FindFreeSlots(int slotNumber, int slotCount)
 		{
 			var tempSlotList = new List<int>();
 
@@ -379,10 +350,10 @@ namespace MemcardRex
 		}
 
 		//Return all bytes of the specified save
-		public byte[] getSaveBytes(int slotNumber)
+		public byte[] GetSaveBytes(int slotNumber)
 		{
 			//Get all linked saves
-			var saveSlots = findSaveLinks(slotNumber);
+			var saveSlots = FindSaveLinks(slotNumber);
 
 			//Calculate the number of bytes needed to store the save
 			var saveBytes = new byte[8320 + ((saveSlots.Length - 1)*8192)];
@@ -403,11 +374,11 @@ namespace MemcardRex
 		}
 
 		//Input given bytes back to the Memory Card
-		public bool setSaveBytes(int slotNumber, byte[] saveBytes, out int reqSlots)
+		public bool SetSaveBytes(int slotNumber, byte[] saveBytes, out int reqSlots)
 		{
 			//Number of slots to set
 			var slotCount = (saveBytes.Length - 128)/8192;
-			var freeSlots = findFreeSlots(slotNumber, slotCount);
+			var freeSlots = FindFreeSlots(slotNumber, slotCount);
 			var numberOfBytes = slotCount*8192;
 			;
 			reqSlots = slotCount;
@@ -452,14 +423,14 @@ namespace MemcardRex
 			HeaderData[freeSlots[0], 0] = 0x51;
 
 			//Reload data
-			calculateXOR();
-			loadStringData();
-			loadSlotTypes();
-			loadRegion();
-			loadSaveSize();
-			loadPalette();
-			loadIcons();
-			loadIconFrames();
+			CalculateChecksums();
+			LoadStringData();
+			LoadSlotTypes();
+			LoadRegion();
+			LoadSaveSize();
+			LoadPalette();
+			LoadIcons();
+			LoadIconFrames();
 
 			//Set changedFlag to edited
 			ChangedFlag = true;
@@ -468,7 +439,7 @@ namespace MemcardRex
 		}
 
 		//Set Product code, Identifier and Region in the header of the selected save
-		public void setHeaderData(int slotNumber, string sProdCode, string sIdentifier, ushort sRegion)
+		public void SetHeaderData(int slotNumber, string sProdCode, string sIdentifier, ushort sRegion)
 		{
 			//Temp array used for manipulation
 			byte[] tempByteArray;
@@ -492,18 +463,18 @@ namespace MemcardRex
 			HeaderData[slotNumber, 11] = (byte)(sRegion >> 8);
 
 			//Reload data
-			loadStringData();
-			loadRegion();
+			LoadStringData();
+			LoadRegion();
 
 			//Calculate XOR
-			calculateXOR();
+			CalculateChecksums();
 
 			//Set changedFlag to edited
 			ChangedFlag = true;
 		}
 
 		//Load region of the saves
-		private void loadRegion()
+		private void LoadRegion()
 		{
 			//Clear existing data
 			SaveRegion = new MemoryCardSaveRegion[15];
@@ -517,7 +488,7 @@ namespace MemcardRex
 		}
 
 		//Load palette
-		private void loadPalette()
+		private void LoadPalette()
 		{
 			var redChannel = 0;
 			var greenChannel = 0;
@@ -551,7 +522,7 @@ namespace MemcardRex
 		}
 
 		//Load the icons
-		private void loadIcons()
+		private void LoadIcons()
 		{
 			var byteCount = 0;
 
@@ -581,7 +552,7 @@ namespace MemcardRex
 		}
 
 		//Get icon data as bytes
-		public byte[] getIconBytes(int slotNumber)
+		public byte[] GetIconBytes(int slotNumber)
 		{
 			var iconBytes = new byte[416];
 
@@ -593,22 +564,22 @@ namespace MemcardRex
 		}
 
 		//Set icon data to saveData
-		public void setIconBytes(int slotNumber, byte[] iconBytes)
+		public void SetIconBytes(int slotNumber, byte[] iconBytes)
 		{
 			//Set bytes from the given slot
 			for (var i = 0; i < 416; i++)
 				SaveData[slotNumber, i + 96] = iconBytes[i];
 
 			//Reload data
-			loadPalette();
-			loadIcons();
+			LoadPalette();
+			LoadIcons();
 
 			//Set changedFlag to edited
 			ChangedFlag = true;
 		}
 
 		//Load icon frames
-		private void loadIconFrames()
+		private void LoadIconFrames()
 		{
 			//Clear existing data
 			IconFrames = new int[15];
@@ -618,9 +589,6 @@ namespace MemcardRex
 			{
 				switch (SaveData[slotNumber, 2])
 				{
-					default: //No frames (save data is probably clean)
-						break;
-
 					case 0x11: //1 frame
 						IconFrames[slotNumber] = 1;
 						break;
@@ -632,12 +600,14 @@ namespace MemcardRex
 					case 0x13: //3 frames
 						IconFrames[slotNumber] = 3;
 						break;
+
+					default: //No frames (save data is probably clean)
+						break;
 				}
 			}
 		}
 
-		//Load GME comments
-		private void loadGMEComments()
+		private void LoadGmeComments()
 		{
 			//Clear existing data
 			SaveComments = new string[15];
@@ -656,23 +626,14 @@ namespace MemcardRex
 			}
 		}
 
-		//Calculate XOR checksum
-		private void calculateXOR()
+		private void CalculateChecksums()
 		{
-			byte XORchecksum = 0;
-
-			//Cycle through each slot
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
-				//Set default value
-				XORchecksum = 0;
-
-				//Count 127 bytes
+				byte checkSum = 0;
 				for (var byteCount = 0; byteCount < 126; byteCount++)
-					XORchecksum ^= HeaderData[slotNumber, byteCount];
-
-				//Store checksum in 128th byte
-				HeaderData[slotNumber, 127] = XORchecksum;
+					checkSum ^= HeaderData[slotNumber, byteCount];
+				HeaderData[slotNumber, 127] = checkSum;
 			}
 		}
 
@@ -696,22 +657,21 @@ namespace MemcardRex
 			HeaderData[slotNumber, 9] = 0xFF;
 		}
 
-		//Format a complete Memory Card
-		private void formatMemoryCard()
+		public void Format()
 		{
 			//Format each slot in Memory Card
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 				formatSlot(slotNumber);
 
 			//Reload data
-			calculateXOR();
-			loadStringData();
-			loadSlotTypes();
-			loadRegion();
-			loadSaveSize();
-			loadPalette();
-			loadIcons();
-			loadIconFrames();
+			CalculateChecksums();
+			LoadStringData();
+			LoadSlotTypes();
+			LoadRegion();
+			LoadSaveSize();
+			LoadPalette();
+			LoadIcons();
+			LoadIconFrames();
 
 			//Set changedFlag to edited
 			ChangedFlag = true;
@@ -721,7 +681,7 @@ namespace MemcardRex
 		public bool saveSingleSave(string fileName, int slotNumber, int singleSaveType)
 		{
 			BinaryWriter binWriter;
-			var outputData = getSaveBytes(slotNumber);
+			var outputData = GetSaveBytes(slotNumber);
 
 			//Check if the file is allowed to be opened for writing
 			try
@@ -856,92 +816,75 @@ namespace MemcardRex
 			}
 
 			//Import the save to Memory Card
-			if (setSaveBytes(slotNumber, finalData, out requiredSlots)) return true;
+			if (SetSaveBytes(slotNumber, finalData, out requiredSlots)) return true;
 			return false;
 		}
 
-		//Save Memory Card to the given filename
-		public bool saveMemoryCard(string fileName, MemoryCardType memoryCardType)
+		public bool SaveTo(string filePath, MemoryCardType memoryCardType)
 		{
-			BinaryWriter binWriter = null;
-
-			//Check if the file is allowed to be opened for writing
 			try
 			{
-				binWriter = new BinaryWriter(File.Open(fileName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None));
+				using (var file = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+				{
+					SaveTo(file, memoryCardType);
+					CardLocation = filePath;
+					CardName = Path.GetFileNameWithoutExtension(filePath);
+					return true;
+				}
 			}
-			catch (Exception)
+			catch
 			{
 				return false;
 			}
+		}
 
-			//Prepare data for saving
-			loadDataToRawCard();
-
-			//Check what kind of file to output according to memoryCardType
-			switch (memoryCardType)
+		public void SaveTo(Stream outputStream, MemoryCardType memoryCardType)
+		{
+			using (var binWriter = new BinaryWriter(outputStream))
 			{
-				default: //Raw Memory Card
-					binWriter.Write(rawMemoryCard);
-					break;
+				CreateRawCardInternal();
+				switch (memoryCardType)
+				{
+					case MemoryCardType.Gme:
+						CreateGmeHeader();
+						binWriter.Write(GmeHeader);
+						binWriter.Write(rawData);
+						break;
 
-				case MemoryCardType.Gme:
-					fillGmeHeader();
-					binWriter.Write(GmeHeader);
-					binWriter.Write(rawMemoryCard);
-					break;
+					case MemoryCardType.Vgs:
+						binWriter.Write(GetVgsHeader());
+						binWriter.Write(rawData);
+						break;
 
-				case MemoryCardType.Vgs:
-					binWriter.Write(getVGSheader());
-					binWriter.Write(rawMemoryCard);
-					break;
+					default:
+						binWriter.Write(rawData);
+						break;
+				}
+				ChangedFlag = false;
+				binWriter.Flush();
 			}
-
-			//Store the location of the Memory Card
-			CardLocation = fileName;
-
-			//Store the filename of the Memory Card
-			CardName = Path.GetFileNameWithoutExtension(fileName);
-
-			//Set changedFlag to saved
-			ChangedFlag = false;
-
-			//File is sucesfully saved, close the stream
-			binWriter.Close();
-
-			return true;
 		}
 
-		//Save (export) Memory Card to a given byte stream
-		public byte[] saveMemoryCardStream()
+		public byte[] GetRawMemoryCard()
 		{
-			//Prepare data for saving
-			loadDataToRawCard();
-
-			//Return complete Memory Card data
-			return rawMemoryCard;
+			CreateRawCardInternal();
+			return rawData;
 		}
 
-		//Open memory card from the given byte stream
-		public void openMemoryCardStream(byte[] memCardData)
+		public void LoadMemoryCard(byte[] memCardData)
 		{
-			//Set the reference for the recieved data
-			rawMemoryCard = memCardData;
-
-			//Load Memory Card data from raw card
-			LoadDataFromRawCard();
-
+			rawData = memCardData;
+			ParseRawCardInternal();
 			CardName = "Untitled";
-
-			calculateXOR();
-			loadStringData();
-			loadGMEComments();
-			loadSlotTypes();
-			loadRegion();
-			loadSaveSize();
-			loadPalette();
-			loadIcons();
-			loadIconFrames();
+			CalculateChecksums();
+			LoadStringData();
+			LoadGmeComments();
+			LoadSlotTypes();
+			LoadRegion();
+			LoadSaveSize();
+			LoadPalette();
+			LoadIcons();
+			LoadIconFrames();
 
 			//Since the stream is of the unknown origin Memory Card is treated as edited
 			ChangedFlag = true;
@@ -970,7 +913,7 @@ namespace MemcardRex
 				}
 
 				//Put data into temp array
-				binReader.BaseStream.Read(tempData, 0, 134976);
+				binReader.BaseStream.Read(tempData, 0, GmeHeaderSize + MemoryCardSize);
 
 				//File is sucesfully read, close the stream
 				binReader.Close();
@@ -982,12 +925,9 @@ namespace MemcardRex
 				CardName = Path.GetFileNameWithoutExtension(fileName);
 
 				//Check the format of the card and if it's supported load it (filter illegal characters from types)
-				tempString = Encoding.ASCII.GetString(tempData, 0, 11).Trim((char)0x0, (char)0x1, (char)0x3F);
+				tempString = Encoding.ASCII.GetString(tempData, 0, 11).Trim((char)0x00, (char)0x01, (char)0x3F);
 				switch (tempString)
 				{
-					default: //File type is not supported
-						return "'" + CardName + "' is not a supported Memory Card format.";
-
 					case "MC":
 						startOffset = 0;
 						CardType = MemoryCardType.Raw;
@@ -996,9 +936,8 @@ namespace MemcardRex
 					case "123-456-STD":
 						startOffset = 3904;
 						CardType = MemoryCardType.Gme;
-
-						//Copy input data to gmeHeader
-						for (var i = 0; i < 3904; i++) GmeHeader[i] = tempData[i];
+						for (var i = 0; i < GmeHeaderSize; i++)
+							GmeHeader[i] = tempData[i];
 						break;
 
 					case "VgsM":
@@ -1010,50 +949,53 @@ namespace MemcardRex
 						startOffset = 128;
 						CardType = MemoryCardType.Vmp;
 						break;
+
+					default: //File type is not supported
+						return "'" + CardName + "' is not a supported Memory Card format.";
 				}
 
-				//Copy data to rawMemoryCard array with offset from input data
-				Array.Copy(tempData, startOffset, rawMemoryCard, 0, 131072);
+				//Copy data to rawData array with offset from input data
+				Buffer.BlockCopy(tempData, startOffset, rawData, 0, MemoryCardSize);
 
 				//Load Memory Card data from raw card
-				LoadDataFromRawCard();
+				ParseRawCardInternal();
 			}
 			// Memory Card should be created
 			else
 			{
 				CardName = "Untitled";
-				formatMemoryCard();
+				Format();
 
 				//Set changedFlag to false since this is created card
 				ChangedFlag = false;
 			}
 
 			//Calculate XOR checksum (in case if any of the saveHeaders have corrputed XOR)
-			calculateXOR();
+			CalculateChecksums();
 
 			//Convert various Memory Card data to strings
-			loadStringData();
+			LoadStringData();
 
 			//Load GME comments (if card is any other type comments will be null)
-			loadGMEComments();
+			LoadGmeComments();
 
 			//Load slot descriptions (types)
-			loadSlotTypes();
+			LoadSlotTypes();
 
 			//Load region data
-			loadRegion();
+			LoadRegion();
 
 			//Load size data
-			loadSaveSize();
+			LoadSaveSize();
 
 			//Load icon palette data as Color values
-			loadPalette();
+			LoadPalette();
 
 			//Load icon data to bitmaps
-			loadIcons();
+			LoadIcons();
 
 			//Load number of frames
-			loadIconFrames();
+			LoadIconFrames();
 
 			//Everything went well, no error messages
 			return null;
