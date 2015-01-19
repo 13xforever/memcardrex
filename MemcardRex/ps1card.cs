@@ -20,7 +20,6 @@ namespace MemcardRex
 
 		private byte[] rawData = new byte[MemoryCardSize];
 
-
 		public string CardLocation; //path + filename
 		public string CardName;
 		public MemoryCardType CardType;
@@ -144,52 +143,42 @@ namespace MemcardRex
 			}
 		}
 
-		//Load size of each slot in KB
-		private void LoadSaveSize()
+		private void CalculateSaveSize()
 		{
-			//Clear existing data
-			SaveSize = new int[15];
-
-			//Fill data for each slot
+			SaveSize.Clear();
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 				SaveSize[slotNumber] = (HeaderData[slotNumber, 4] | (HeaderData[slotNumber, 5] << 8) | (HeaderData[slotNumber, 6] << 16))/1024;
 		}
 
-		//Toggle deleted/undeleted status
 		public void ToggleDeleteSave(int slotNumber)
 		{
-			//Get all linked saves
 			var saveSlots = FindSaveLinks(slotNumber);
-
-			//todo: why SaveType is not being changed?
-			for (var i = 0; i < saveSlots.Length; i++)
-				switch (SaveType[saveSlots[i]])
+			foreach (int slot in saveSlots)
+			{
+				switch (SaveType[slot])
 				{
 					case MemoryCardSaveType.Initial:
-						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.DeletedInitial;
+						SaveType[slot] = MemoryCardSaveType.DeletedInitial;
 						break;
 					case MemoryCardSaveType.MiddleLink:
-						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.DeletedMiddleLink;
+						SaveType[slot] = MemoryCardSaveType.DeletedMiddleLink;
 						break;
 					case MemoryCardSaveType.EndLink:
-						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.DeletedEndLink;
+						SaveType[slot] = MemoryCardSaveType.DeletedEndLink;
 						break;
 					case MemoryCardSaveType.DeletedInitial:
-						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.Initial;
+						SaveType[slot] = MemoryCardSaveType.Initial;
 						break;
 					case MemoryCardSaveType.DeletedMiddleLink:
-						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.MiddleLink;
+						SaveType[slot] = MemoryCardSaveType.MiddleLink;
 						break;
 					case MemoryCardSaveType.DeletedEndLink:
-						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.EndLink;
+						SaveType[slot] = MemoryCardSaveType.EndLink;
 						break;
 				}
-
-			//Reload data
+				HeaderData[slot, 0] = (byte)SaveType[slot];
+			}
 			CalculateChecksums();
-			LoadSlotTypes();
-
-			//Memory Card is changed
 			ChangedFlag = true;
 		}
 
@@ -210,7 +199,7 @@ namespace MemcardRex
 			LoadStringData();
 			LoadSlotTypes();
 			LoadRegion();
-			LoadSaveSize();
+			CalculateSaveSize();
 			LoadPalette();
 			LoadIcons();
 			LoadIconFrames();
@@ -343,7 +332,7 @@ namespace MemcardRex
 			LoadStringData();
 			LoadSlotTypes();
 			LoadRegion();
-			LoadSaveSize();
+			CalculateSaveSize();
 			LoadPalette();
 			LoadIcons();
 			LoadIconFrames();
@@ -584,7 +573,7 @@ namespace MemcardRex
 			LoadStringData();
 			LoadSlotTypes();
 			LoadRegion();
-			LoadSaveSize();
+			CalculateSaveSize();
 			LoadPalette();
 			LoadIcons();
 			LoadIconFrames();
@@ -797,7 +786,7 @@ namespace MemcardRex
 			LoadGmeComments();
 			LoadSlotTypes();
 			LoadRegion();
-			LoadSaveSize();
+			CalculateSaveSize();
 			LoadPalette();
 			LoadIcons();
 			LoadIconFrames();
@@ -902,7 +891,7 @@ namespace MemcardRex
 			LoadRegion();
 
 			//Load size data
-			LoadSaveSize();
+			CalculateSaveSize();
 
 			//Load icon palette data as Color values
 			LoadPalette();
