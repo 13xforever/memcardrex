@@ -307,7 +307,7 @@ namespace MemcardRex
 			//Check if there are any cards opened
 			if (PScard.Count > 0)
 			{
-				if (PScard.Count == 2 && PScard[0].cardLocation == null && PScard[0].changedFlag == false)
+				if (PScard.Count == 2 && PScard[0].CardLocation == null && PScard[0].ChangedFlag == false)
 				{
 					closeCard(0);
 				}
@@ -342,7 +342,7 @@ namespace MemcardRex
 			//Check if the card already exists
 			foreach (var checkCard in PScard)
 			{
-				if (checkCard.cardLocation == fileName && fileName != null)
+				if (checkCard.CardLocation == fileName && fileName != null)
 				{
 					//Card is already opened, display message and exit
 					new messageWindow().ShowMessage(this, appName, "'" + Path.GetFileName(fileName) + "' is already opened.", "OK", null, true);
@@ -394,7 +394,7 @@ namespace MemcardRex
 			tabPage.Controls.Add(cardList[cardList.Count - 1]);
 
 			//Delete the initial "Untitled" card
-			if (PScard[PScard.Count - 1].cardLocation != null) filterNullCard();
+			if (PScard[PScard.Count - 1].CardLocation != null) filterNullCard();
 
 			//Switch the active tab to the currently opened card
 			mainTabControl.SelectedIndex = PScard.Count - 1;
@@ -475,10 +475,10 @@ namespace MemcardRex
 			if (PScard.Count > 0)
 			{
 				//Check if file can be saved or save dialog must be shown (VMP is read only)
-				if (PScard[listIndex].cardLocation == null || PScard[listIndex].cardType == MemoryCardType.Vmp)
+				if (PScard[listIndex].CardLocation == null || PScard[listIndex].CardType == MemoryCardType.Vmp)
 					saveCardDialog(listIndex);
 				else
-					saveMemoryCard(listIndex, PScard[listIndex].cardLocation, PScard[listIndex].cardType);
+					saveMemoryCard(listIndex, PScard[listIndex].CardLocation, PScard[listIndex].CardType);
 			}
 		}
 
@@ -544,17 +544,17 @@ namespace MemcardRex
 				if (cardList[listIndex].SelectedIndices.Count == 0) return;
 
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
-				var saveTitle = PScard[listIndex].saveName[slotNumber, mainSettings.titleEncoding];
-				var saveComment = PScard[listIndex].saveComments[slotNumber];
+				var saveTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
+				var saveComment = PScard[listIndex].SaveComments[slotNumber];
 
 				//Check if comments are allowed to be edited
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
 					default: //Not allowed
 						break;
 
-					case 1:
-					case 4:
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
 						var commentsDlg = new commentsWindow();
 
 						//Load values to dialog
@@ -565,7 +565,7 @@ namespace MemcardRex
 						if (commentsDlg.okPressed)
 						{
 							//Insert edited comments back in the card
-							PScard[listIndex].saveComments[slotNumber] = commentsDlg.saveComment;
+							PScard[listIndex].SaveComments[slotNumber] = commentsDlg.saveComment;
 						}
 						commentsDlg.Dispose();
 						break;
@@ -585,23 +585,23 @@ namespace MemcardRex
 				if (cardList[listIndex].SelectedIndices.Count == 0) return;
 
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
-				var saveRegion = PScard[listIndex].saveRegion[slotNumber];
-				var saveSize = PScard[listIndex].saveSize[slotNumber];
-				var iconFrames = PScard[listIndex].iconFrames[slotNumber];
-				var saveProdCode = PScard[listIndex].saveProductCode[slotNumber];
-				var saveIdentifier = PScard[listIndex].saveIdentifier[slotNumber];
-				var saveTitle = PScard[listIndex].saveName[slotNumber, mainSettings.titleEncoding];
+				var saveRegion = PScard[listIndex].SaveRegion[slotNumber];
+				var saveSize = PScard[listIndex].SaveSize[slotNumber];
+				var iconFrames = PScard[listIndex].IconFrames[slotNumber];
+				var saveProdCode = PScard[listIndex].SaveProductCode[slotNumber];
+				var saveIdentifier = PScard[listIndex].SaveIdentifier[slotNumber];
+				var saveTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
 				var saveIcons = new Bitmap[3];
 
 				//Get all 3 bitmaps for selected save
 				for (var i = 0; i < 3; i++)
-					saveIcons[i] = PScard[listIndex].iconData[slotNumber, i];
+					saveIcons[i] = PScard[listIndex].IconData[slotNumber, i];
 
 				//Check if slot is "legal"
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					case 1:
-					case 4:
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
 						using (var informationDlg = new informationWindow())
 						{
 							//Load values to dialog
@@ -623,31 +623,25 @@ namespace MemcardRex
 			if (PScard.Count > 0)
 			{
 				var listIndex = mainTabControl.SelectedIndex;
-
 				//Check if a save is selected
 				if (cardList[listIndex].SelectedIndices.Count == 0) return;
 
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
-
-				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default:
-						break;
-
-					case 4: //Deleted initial
+					case MemoryCardSaveType.DeletedInitial:
 						PScard[listIndex].toggleDeleteSave(slotNumber);
 						refreshListView(listIndex, slotNumber);
 						break;
 
-					case 1: //Initial save
+					case MemoryCardSaveType.Initial:
 						new messageWindow().ShowMessage(this, appName, "The selected save is not deleted.", "OK", null, true);
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -668,24 +662,21 @@ namespace MemcardRex
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 
 				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default:
-						break;
-
-					case 1: //Initial save
+					case MemoryCardSaveType.Initial:
 						PScard[listIndex].toggleDeleteSave(slotNumber);
 						refreshListView(listIndex, slotNumber);
 						break;
 
-					case 4: //Deleted initial
+					case MemoryCardSaveType.DeletedInitial:
 						new messageWindow().ShowMessage(this, appName, "The selected save is already deleted.", "OK", null, true);
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -706,7 +697,7 @@ namespace MemcardRex
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 
 				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
 					default: //Slot is either initial, deleted initial or corrupted so it can be safetly formatted
 						if (new messageWindow().ShowMessage(this, appName, "Formatted slots cannot be restored.\nDo you want to proceed with this operation?", "No", "Yes", true) == "Yes")
@@ -716,10 +707,10 @@ namespace MemcardRex
 						}
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -738,22 +729,19 @@ namespace MemcardRex
 				if (cardList[listIndex].SelectedIndices.Count == 0) return;
 
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
-				var saveName = PScard[listIndex].saveName[slotNumber, 0];
+				var saveName = PScard[listIndex].SaveName[slotNumber, 0];
 
 				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default:
-						break;
-
-					case 1: //Initial save
-					case 4: //Deleted initial
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
 						tempBuffer = PScard[listIndex].getSaveBytes(slotNumber);
-						tempBufferName = PScard[listIndex].saveName[slotNumber, 0];
+						tempBufferName = PScard[listIndex].SaveName[slotNumber, 0];
 
 						//Show temp buffer toolbar info
 						tBufToolButton.Enabled = true;
-						tBufToolButton.Image = PScard[listIndex].iconData[slotNumber, 0];
+						tBufToolButton.Image = PScard[listIndex].IconData[slotNumber, 0];
 						tBufToolButton.Text = saveName;
 
 						//Refresh the current list
@@ -761,10 +749,10 @@ namespace MemcardRex
 
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -789,7 +777,7 @@ namespace MemcardRex
 				if (tempBuffer != null)
 				{
 					//Check if the slot to paste the save on is free
-					if (PScard[listIndex].saveType[slotNumber] == 0)
+					if (PScard[listIndex].SaveType[slotNumber] == 0)
 					{
 						if (PScard[listIndex].setSaveBytes(slotNumber, tempBuffer, out requiredSlots))
 						{
@@ -826,16 +814,16 @@ namespace MemcardRex
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 
 				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
 					default:
 						break;
 
-					case 1: //Initial save
+					case MemoryCardSaveType.Initial:
 						byte singleSaveType = 0;
 
 						//Set output filename
-						var outputFilename = getRegionString(PScard[listIndex].saveRegion[slotNumber]) + PScard[listIndex].saveProductCode[slotNumber] + PScard[listIndex].saveIdentifier[slotNumber];
+						var outputFilename = getRegionString(PScard[listIndex].SaveRegion[slotNumber]) + PScard[listIndex].SaveProductCode[slotNumber] + PScard[listIndex].SaveIdentifier[slotNumber];
 
 						//Filter illegal characters from the name
 						foreach (var illegalChar in Path.GetInvalidPathChars())
@@ -873,14 +861,14 @@ namespace MemcardRex
 							PScard[listIndex].saveSingleSave(saveFileDlg.FileName, slotNumber, singleSaveType);
 						}
 						break;
-					case 4: //Deleted initial
+					case MemoryCardSaveType.DeletedInitial:
 						new messageWindow().ShowMessage(this, appName, "Deleted saves cannot be exported. Restore a save to proceed.", "OK", null, true);
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -902,7 +890,7 @@ namespace MemcardRex
 				var requiredSlots = 0;
 
 				//Check if the slot to import the save on is free
-				if (PScard[listIndex].saveType[slotNumber] == 0)
+				if (PScard[listIndex].SaveType[slotNumber] == 0)
 				{
 					var openFileDlg = new OpenFileDialog();
 					openFileDlg.Title = "Import save";
@@ -950,9 +938,9 @@ namespace MemcardRex
 		private void savePrompt(int listIndex)
 		{
 			//Check if the file has been changed
-			if (PScard[listIndex].changedFlag)
+			if (PScard[listIndex].ChangedFlag)
 			{
-				if (new messageWindow().ShowMessage(this, appName, "Do you want to save changes to '" + PScard[listIndex].cardName + "'?", "No", "Yes", true, true) == "Yes")
+				if (new messageWindow().ShowMessage(this, appName, "Do you want to save changes to '" + PScard[listIndex].CardName + "'?", "No", "Yes", true, true) == "Yes")
 					saveCardFunction(listIndex);
 			}
 		}
@@ -982,18 +970,15 @@ namespace MemcardRex
 				if (cardList[listIndex].SelectedIndices.Count == 0) return;
 
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
-				var iconFrames = PScard[listIndex].iconFrames[slotNumber];
-				var saveTitle = PScard[listIndex].saveName[slotNumber, mainSettings.titleEncoding];
+				var iconFrames = PScard[listIndex].IconFrames[slotNumber];
+				var saveTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
 				var iconBytes = PScard[listIndex].getIconBytes(slotNumber);
 
 				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default:
-						break;
-
-					case 1: //Initial save
-					case 4: //Deleted initial
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
 						var iconDlg = new iconWindow();
 						iconDlg.initializeDialog(saveTitle, iconFrames, iconBytes);
 						iconDlg.ShowDialog(this);
@@ -1008,10 +993,10 @@ namespace MemcardRex
 						iconDlg.Dispose();
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -1074,7 +1059,7 @@ namespace MemcardRex
 			FontFamily tempFontFamily = null;
 
 			//Place cardName on the tab
-			mainTabControl.TabPages[listIndex].Text = PScard[listIndex].cardName;
+			mainTabControl.TabPages[listIndex].Text = PScard[listIndex].CardName;
 
 			//Remove all icons from the list
 			iconList[listIndex].Images.Clear();
@@ -1092,40 +1077,40 @@ namespace MemcardRex
 				//Add save icons to the list
 				iconList[listIndex].Images.Add(prepareIcons(listIndex, i));
 
-				switch (PScard[listIndex].saveType[i])
+				switch (PScard[listIndex].SaveType[i])
 				{
 					default: //Corrupted
 						cardList[listIndex].Items.Add("Corrupted slot");
 						break;
 
-					case 0: //Formatted save
+					case MemoryCardSaveType.Formatted:
 						cardList[listIndex].Items.Add("Free slot");
 						break;
 
-					case 1: //Initial save
-					case 4: //Deleted initial save
-						cardList[listIndex].Items.Add(PScard[listIndex].saveName[i, mainSettings.titleEncoding]);
-						cardList[listIndex].Items[i].SubItems.Add(PScard[listIndex].saveProductCode[i]);
-						cardList[listIndex].Items[i].SubItems.Add(PScard[listIndex].saveIdentifier[i]);
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
+						cardList[listIndex].Items.Add(PScard[listIndex].SaveName[i, mainSettings.titleEncoding]);
+						cardList[listIndex].Items[i].SubItems.Add(PScard[listIndex].SaveProductCode[i]);
+						cardList[listIndex].Items[i].SubItems.Add(PScard[listIndex].SaveIdentifier[i]);
 						cardList[listIndex].Items[i].ImageIndex = i + 2; //Skip two linked slot icons
 						break;
 
-					case 2: //Middle link
+					case MemoryCardSaveType.MiddleLink:
 						cardList[listIndex].Items.Add("Linked slot (middle link)");
 						cardList[listIndex].Items[i].ImageIndex = 0;
 						break;
 
-					case 5: //Middle link deleted
+					case MemoryCardSaveType.DeletedMiddleLink:
 						cardList[listIndex].Items.Add("Linked slot (middle link)");
 						cardList[listIndex].Items[i].ImageIndex = 1;
 						break;
 
-					case 3: //End link
+					case MemoryCardSaveType.EndLink:
 						cardList[listIndex].Items.Add("Linked slot (end link)");
 						cardList[listIndex].Items[i].ImageIndex = 0;
 						break;
 
-					case 6: //End link deleted
+					case MemoryCardSaveType.DeletedEndLink:
 						cardList[listIndex].Items.Add("Linked slot (end link)");
 						cardList[listIndex].Items[i].ImageIndex = 1;
 						break;
@@ -1188,10 +1173,10 @@ namespace MemcardRex
 			}
 
 			//Draw icon
-			iconGraphics.DrawImage(PScard[listIndex].iconData[slotNumber, 0], 0, 0, 16, 16);
+			iconGraphics.DrawImage(PScard[listIndex].IconData[slotNumber, 0], 0, 0, 16, 16);
 
 			//Draw flag depending of the region
-			switch (PScard[listIndex].saveRegion[slotNumber])
+			switch (PScard[listIndex].SaveRegion[slotNumber])
 			{
 				default: //Formatted save, Corrupted save, Unknown region
 					iconGraphics.DrawImage(Resources.naflag, 17, 0, 30, 16);
@@ -1211,7 +1196,7 @@ namespace MemcardRex
 			}
 
 			//Check if save is deleted and color the icon
-			if (PScard[listIndex].saveType[slotNumber] == 4)
+			if (PScard[listIndex].SaveType[slotNumber] == MemoryCardSaveType.DeletedInitial)
 				iconGraphics.FillRegion(new SolidBrush(Color.FromArgb(0xA0, 0xFF, 0xFF, 0xFF)), new Region(new Rectangle(0, 0, 16, 16)));
 
 			iconGraphics.Dispose();
@@ -1224,7 +1209,7 @@ namespace MemcardRex
 		{
 			//Show the location of the active card in the tool strip (if there are any cards)
 			if (PScard.Count > 0)
-				toolString.Text = PScard[mainTabControl.SelectedIndex].cardLocation;
+				toolString.Text = PScard[mainTabControl.SelectedIndex].CardLocation;
 			else
 				toolString.Text = null;
 
@@ -1254,19 +1239,16 @@ namespace MemcardRex
 				if (cardList[listIndex].SelectedIndices.Count == 0) return;
 
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
-				var saveRegion = PScard[listIndex].saveRegion[slotNumber];
-				var saveProdCode = PScard[listIndex].saveProductCode[slotNumber];
-				var saveIdentifier = PScard[listIndex].saveIdentifier[slotNumber];
-				var saveTitle = PScard[listIndex].saveName[slotNumber, mainSettings.titleEncoding];
+				var saveRegion = PScard[listIndex].SaveRegion[slotNumber];
+				var saveProdCode = PScard[listIndex].SaveProductCode[slotNumber];
+				var saveIdentifier = PScard[listIndex].SaveIdentifier[slotNumber];
+				var saveTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
 
 				//Check if slot is allowed to be edited
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default: //Not allowed
-						break;
-
-					case 1:
-					case 4:
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
 						var headerDlg = new headerWindow();
 
 						//Load values to dialog
@@ -1355,16 +1337,13 @@ namespace MemcardRex
 					var slotNumber = cardList[listIndex].SelectedIndices[0];
 
 					//Check the save type
-					switch (PScard[listIndex].saveType[slotNumber])
+					switch (PScard[listIndex].SaveType[slotNumber])
 					{
-						default:
-							break;
-
-						case 1: //Initial save
-						case 4: //Deleted initial
+						case MemoryCardSaveType.Initial:
+						case MemoryCardSaveType.DeletedInitial:
 
 							//Get the supported plugins
-							supportedPlugins = pluginSystem.getSupportedPlugins(PScard[listIndex].saveProductCode[slotNumber]);
+							supportedPlugins = pluginSystem.getSupportedPlugins(PScard[listIndex].SaveProductCode[slotNumber]);
 
 							//Check if there are any plugins that support the product code
 							if (supportedPlugins != null)
@@ -1401,7 +1380,7 @@ namespace MemcardRex
 				var listIndex = mainTabControl.SelectedIndex;
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 				var reqSlots = 0;
-				var editedSaveBytes = pluginSystem.editSaveData(supportedPlugins[pluginIndex], PScard[listIndex].getSaveBytes(slotNumber), PScard[listIndex].saveProductCode[slotNumber]);
+				var editedSaveBytes = pluginSystem.editSaveData(supportedPlugins[pluginIndex], PScard[listIndex].getSaveBytes(slotNumber), PScard[listIndex].SaveProductCode[slotNumber]);
 
 				if (editedSaveBytes != null)
 				{
@@ -1414,7 +1393,7 @@ namespace MemcardRex
 					refreshListView(listIndex, slotNumber);
 
 					//Set the edited flag of the card
-					PScard[listIndex].changedFlag = true;
+					PScard[listIndex].ChangedFlag = true;
 				}
 			}
 		}
@@ -1527,12 +1506,9 @@ namespace MemcardRex
 					var slotNumber = cardList[listIndex].SelectedIndices[0];
 
 					//Check the save type
-					switch (PScard[listIndex].saveType[slotNumber])
+					switch (PScard[listIndex].SaveType[slotNumber])
 					{
-						default:
-							break;
-
-						case 0: //Formatted
+						case MemoryCardSaveType.Formatted:
 							disableEditItems();
 							pasteSaveFromTemporaryBufferToolStripMenuItem.Enabled = true;
 							paseToolStripMenuItem.Enabled = true;
@@ -1541,7 +1517,7 @@ namespace MemcardRex
 							importButton.Enabled = true;
 							break;
 
-						case 1: //Initial
+						case MemoryCardSaveType.Initial:
 							enableEditItems();
 							restoreSaveToolStripMenuItem.Enabled = false;
 							restoreSaveToolStripMenuItem1.Enabled = false;
@@ -1552,12 +1528,12 @@ namespace MemcardRex
 							importButton.Enabled = false;
 							break;
 
-						case 2: //Middle link
-						case 3: //End link
+						case MemoryCardSaveType.MiddleLink:
+						case MemoryCardSaveType.EndLink:
 							disableEditItems();
 							break;
 
-						case 4: //Deleted initial
+						case MemoryCardSaveType.DeletedInitial:
 							enableEditItems();
 							deleteSaveToolStripMenuItem.Enabled = false;
 							deleteSaveToolStripMenuItem1.Enabled = false;
@@ -1571,12 +1547,12 @@ namespace MemcardRex
 							exportButton.Enabled = false;
 							break;
 
-						case 5: //Deleted middle link
-						case 6: //Deleted end link
+						case MemoryCardSaveType.DeletedMiddleLink:
+						case MemoryCardSaveType.DeletedEndLink:
 							disableEditItems();
 							break;
 
-						case 7: //Corrupted
+						case MemoryCardSaveType.Corrupted:
 							disableEditItems();
 							removeSaveformatSlotsToolStripMenuItem.Enabled = true;
 							removeSaveformatSlotsToolStripMenuItem1.Enabled = true;
@@ -1621,17 +1597,14 @@ namespace MemcardRex
 				var slotNumber = cardList[listIndex].SelectedIndices[0];
 
 				//Check the save type
-				switch (PScard[listIndex].saveType[slotNumber])
+				switch (PScard[listIndex].SaveType[slotNumber])
 				{
-					default:
-						break;
-
-					case 1: //Initial save
-					case 4: //Deleted initial
+					case MemoryCardSaveType.Initial:
+					case MemoryCardSaveType.DeletedInitial:
 
 						//Get data to work with
 						fetchedData = PScard[listIndex].getSaveBytes(slotNumber);
-						fetchedDataTitle = PScard[listIndex].saveName[slotNumber, mainSettings.titleEncoding];
+						fetchedDataTitle = PScard[listIndex].SaveName[slotNumber, mainSettings.titleEncoding];
 
 						//Check if selected saves have the same size
 						if (fetchedData.Length != tempBuffer.Length)
@@ -1645,10 +1618,10 @@ namespace MemcardRex
 
 						break;
 
-					case 2:
-					case 3:
-					case 5:
-					case 6:
+					case MemoryCardSaveType.MiddleLink:
+					case MemoryCardSaveType.EndLink:
+					case MemoryCardSaveType.DeletedMiddleLink:
+					case MemoryCardSaveType.DeletedEndLink:
 						new messageWindow().ShowMessage(this, appName, "The selected slot is linked. Select the initial save slot to proceed.", "OK", null, true);
 						break;
 				}
@@ -1668,13 +1641,13 @@ namespace MemcardRex
 				PScard[PScard.Count - 1].openMemoryCardStream(readData);
 
 				//Temporary set a bogus file location (to fool filterNullCard function)
-				PScard[PScard.Count - 1].cardLocation = "\0";
+				PScard[PScard.Count - 1].CardLocation = "\0";
 
 				//Create a tab page for the new card
 				createTabPage();
 
 				//Restore null location since DexDrive Memory Card is not a file present on the Hard Disk
-				PScard[PScard.Count - 1].cardLocation = null;
+				PScard[PScard.Count - 1].CardLocation = null;
 			}
 		}
 

@@ -85,7 +85,7 @@ namespace MemcardRex
 			switch (iconBackColor)
 			{
 				case 1: //Black
-					iconGraphics.FillRegion(new SolidBrush(Color.Black), new Region(new Rectangle(0, 0, 48, 48)));
+					iconGraphics.FillRegion(new SolidBrush(Color.FromArgb(0xFF, 0x00, 0x00, 0x00)), new Region(new Rectangle(0, 0, 48, 48)));
 					break;
 
 				case 2: //Gray
