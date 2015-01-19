@@ -7,7 +7,9 @@ using System.Drawing;
 using System.IO;
 using System.Text;
 using MemcardRex.Enums;
+using MemcardRex.Enums.MemoryCard;
 using MemcardRex.Utils;
+using Type = MemcardRex.Enums.MemoryCard.Type;
 
 namespace MemcardRex
 {
@@ -22,7 +24,7 @@ namespace MemcardRex
 
 		public string CardLocation; //path + filename
 		public string CardName;
-		public MemoryCardType CardType;
+		public Type CardType;
 		public bool ChangedFlag; //Flag used to determine if the card has been edited since the last saving
 
 		public readonly byte[] GmeHeader = new byte[GmeHeaderSize]; //Header data for the GME Memory Card
@@ -35,9 +37,9 @@ namespace MemcardRex
 		public readonly string[] SaveIdentifier = new string[15];
 		public readonly string[,] SaveName = new string[15, 2]; //Name of the save in ASCII(0) and UTF-16(1) encoding
 		public readonly string[] SaveProductCode = new string[15];
-		public MemoryCardSaveRegion[] SaveRegion = new MemoryCardSaveRegion[15];
+		public SaveRegion[] SaveRegion = new SaveRegion[15];
 		public readonly int[] SaveSize = new int[15]; //Size of the save in KBs
-		public readonly MemoryCardSaveType[] SaveType = new MemoryCardSaveType[15];
+		public readonly SaveType[] SaveType = new SaveType[15];
 
 		private void ParseRawCardInternal()
 		{
@@ -117,7 +119,7 @@ namespace MemcardRex
 		private void LoadSlotTypes()
 		{
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-				SaveType[slotNumber] = (MemoryCardSaveType)HeaderData[slotNumber, 0];
+				SaveType[slotNumber] = (SaveType)HeaderData[slotNumber, 0];
 		}
 
 		private static string GetString(byte[,] header, int slotNumber, int offset, int dataLength, Encoding encoding, byte[] buffer)
@@ -170,23 +172,23 @@ namespace MemcardRex
 			{
 				switch (SaveType[slot])
 				{
-					case MemoryCardSaveType.Initial:
-						SaveType[slot] = MemoryCardSaveType.DeletedInitial;
+					case Enums.MemoryCard.SaveType.Initial:
+						SaveType[slot] = Enums.MemoryCard.SaveType.DeletedInitial;
 						break;
-					case MemoryCardSaveType.MiddleLink:
-						SaveType[slot] = MemoryCardSaveType.DeletedMiddleLink;
+					case Enums.MemoryCard.SaveType.MiddleLink:
+						SaveType[slot] = Enums.MemoryCard.SaveType.DeletedMiddleLink;
 						break;
-					case MemoryCardSaveType.EndLink:
-						SaveType[slot] = MemoryCardSaveType.DeletedEndLink;
+					case Enums.MemoryCard.SaveType.EndLink:
+						SaveType[slot] = Enums.MemoryCard.SaveType.DeletedEndLink;
 						break;
-					case MemoryCardSaveType.DeletedInitial:
-						SaveType[slot] = MemoryCardSaveType.Initial;
+					case Enums.MemoryCard.SaveType.DeletedInitial:
+						SaveType[slot] = Enums.MemoryCard.SaveType.Initial;
 						break;
-					case MemoryCardSaveType.DeletedMiddleLink:
-						SaveType[slot] = MemoryCardSaveType.MiddleLink;
+					case Enums.MemoryCard.SaveType.DeletedMiddleLink:
+						SaveType[slot] = Enums.MemoryCard.SaveType.MiddleLink;
 						break;
-					case MemoryCardSaveType.DeletedEndLink:
-						SaveType[slot] = MemoryCardSaveType.EndLink;
+					case Enums.MemoryCard.SaveType.DeletedEndLink:
+						SaveType[slot] = Enums.MemoryCard.SaveType.EndLink;
 						break;
 				}
 				HeaderData[slot, 0] = (byte)SaveType[slot];
@@ -218,7 +220,7 @@ namespace MemcardRex
 
 				result.Add(slotIdx);
 				//Check if current slot is corrupted
-				if (!Enum.IsDefined(typeof(MemoryCardSaveType), SaveType[slotIdx])) break;
+				if (!Enum.IsDefined(typeof(SaveType), SaveType[slotIdx])) break;
 
 				slotIdx = HeaderData[slotIdx, 8];
 				if (slotIdx == 0xFF) break;
@@ -233,7 +235,7 @@ namespace MemcardRex
 			var result = new List<int>();
 			for (var i = slotNumber; i < 15 && i < (slotNumber + slotCount); i++)
 			{
-				if (SaveType[i] == MemoryCardSaveType.Formatted)
+				if (SaveType[i] == Enums.MemoryCard.SaveType.Formatted)
 					result.Add(i);
 				else
 					break;
@@ -270,15 +272,15 @@ namespace MemcardRex
 					SaveData[freeSlots[i], j] = saveBytes[128 + (i*8192) + j];
 
 			// set links
-			HeaderData[freeSlots[0], 0] = (byte)MemoryCardSaveType.Initial;
+			HeaderData[freeSlots[0], 0] = (byte)Enums.MemoryCard.SaveType.Initial;
 			var lastFreeSlotIdx = freeSlots.Count - 1;
 			for (var i = 0; i < lastFreeSlotIdx; i++)
 			{
-				HeaderData[freeSlots[i], 0] = (byte)MemoryCardSaveType.MiddleLink;
+				HeaderData[freeSlots[i], 0] = (byte)Enums.MemoryCard.SaveType.MiddleLink;
 				HeaderData[freeSlots[i], 8] = (byte)freeSlots[i + 1];
 				HeaderData[freeSlots[i], 9] = 0x00;
 			}
-			HeaderData[freeSlots[lastFreeSlotIdx], 0] = (byte)MemoryCardSaveType.EndLink;
+			HeaderData[freeSlots[lastFreeSlotIdx], 0] = (byte)Enums.MemoryCard.SaveType.EndLink;
 			HeaderData[freeSlots[lastFreeSlotIdx], 8] = 0xFF;
 			HeaderData[freeSlots[lastFreeSlotIdx], 9] = 0xFF;
 
@@ -287,7 +289,7 @@ namespace MemcardRex
 			return true;
 		}
 
-		public void SetHeaderData(int slotNumber, string productCode, string identifier, MemoryCardSaveRegion region)
+		public void SetHeaderData(int slotNumber, string productCode, string identifier, SaveRegion region)
 		{
 			Checks.CheckSaveSlotNumber(slotNumber);
 
@@ -307,7 +309,7 @@ namespace MemcardRex
 		private void LoadRegion()
 		{
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-				SaveRegion[slotNumber] = (MemoryCardSaveRegion)((HeaderData[slotNumber, 11] << 8) | HeaderData[slotNumber, 10]);
+				SaveRegion[slotNumber] = (SaveRegion)((HeaderData[slotNumber, 11] << 8) | HeaderData[slotNumber, 10]);
 		}
 
 		private void LoadPalette()
@@ -392,21 +394,15 @@ namespace MemcardRex
 			}
 		}
 
-		//Format a specified slot (Data MUST be reloaded after the use of this function)
 		private void FormatSlot(int slotNumber)
 		{
-			//Clear headerData
-			for (var byteCount = 0; byteCount < 128; byteCount++)
-				HeaderData[slotNumber, byteCount] = 0x00;
+			Checks.CheckSaveSlotNumber(slotNumber);
 
-			//Clear saveData
+			SaveComments[slotNumber] = new string('\0', 256);
 			for (var byteCount = 0; byteCount < 8192; byteCount++)
 				SaveData[slotNumber, byteCount] = 0x00;
-
-			//Clear GME comment for selected slot
-			SaveComments[slotNumber] = new string('\0', 256);
-
-			//Place default values in headerData
+			for (var byteCount = 0; byteCount < 128; byteCount++)
+				HeaderData[slotNumber, byteCount] = 0x00;
 			HeaderData[slotNumber, 0] = 0xA0;
 			HeaderData[slotNumber, 8] = 0xFF;
 			HeaderData[slotNumber, 9] = 0xFF;
@@ -414,75 +410,48 @@ namespace MemcardRex
 
 		public void Format()
 		{
-			//Format each slot in Memory Card
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 				FormatSlot(slotNumber);
-
-			//Reload data
-			CalculateChecksums();
-			LoadStringData();
-			LoadSlotTypes();
-			LoadRegion();
-			CalculateSaveSize();
-			LoadPalette();
-			LoadIcons();
-			LoadIconFrames();
-
-			//Set changedFlag to edited
 			ChangedFlag = true;
+			ParseEverything();
 		}
 
-		//Save single save to the given filename
-		public bool saveSingleSave(string fileName, int slotNumber, int singleSaveType)
+		public bool SaveSingleSave(string fileName, int slotNumber, SingleSaveFormat singleSaveType)
 		{
-			BinaryWriter binWriter;
-			var outputData = GetSaveBytes(slotNumber);
-
-			//Check if the file is allowed to be opened for writing
 			try
 			{
-				binWriter = new BinaryWriter(File.Open(fileName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None));
+				using (var stream = File.Open(fileName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+				using (var writer = new BinaryWriter(stream))
+				{
+					var outputData = GetSaveBytes(slotNumber);
+					switch (singleSaveType)
+					{
+						case SingleSaveFormat.Mcs:
+							writer.Write(outputData);
+							break;
+
+						case SingleSaveFormat.Raw:
+							writer.Write(outputData, 128, outputData.Length - 128);
+							break;
+
+						default:
+							var arHeader = new byte[54];
+							for (var byteCount = 0; byteCount < 22; byteCount++)
+								arHeader[byteCount] = HeaderData[slotNumber, 10 + byteCount];
+							var arName = AnsiEncoding.GetBytes(SaveName[slotNumber, 0]);
+							Buffer.BlockCopy(arName, 0, arHeader, 21, arName.Length);
+							writer.Write(arHeader);
+							writer.Write(outputData, 128, outputData.Length - 128);
+							writer.Flush();
+							break;
+					}
+					return true;
+				}
 			}
 			catch (Exception)
 			{
 				return false;
 			}
-
-			//Check what kind of file to output according to singleSaveType
-			switch (singleSaveType)
-			{
-				default: //Action Replay single save
-					var arHeader = new byte[54];
-					byte[] arName = null;
-
-					//Copy header data to arHeader
-					for (var byteCount = 0; byteCount < 22; byteCount++)
-						arHeader[byteCount] = HeaderData[slotNumber, byteCount + 10];
-
-					//Convert save name to bytes
-					arName = Encoding.Default.GetBytes(SaveName[slotNumber, 0]);
-
-					//Copy save name to arHeader
-					for (var byteCount = 0; byteCount < arName.Length; byteCount++)
-						arHeader[byteCount + 21] = arName[byteCount];
-
-					binWriter.Write(arHeader);
-					binWriter.Write(outputData, 128, outputData.Length - 128);
-					break;
-
-				case 2: //MCS single save
-					binWriter.Write(outputData);
-					break;
-
-				case 3: //RAW single save
-					binWriter.Write(outputData, 128, outputData.Length - 128);
-					break;
-			}
-
-			//File is sucesfully saved, close the stream
-			binWriter.Close();
-
-			return true;
 		}
 
 		//Import single save to the Memory Card
@@ -575,13 +544,13 @@ namespace MemcardRex
 			return false;
 		}
 
-		public bool SaveTo(string filePath, MemoryCardType memoryCardType)
+		public bool SaveTo(string filePath, Type type)
 		{
 			try
 			{
 				using (var file = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
 				{
-					SaveTo(file, memoryCardType);
+					SaveTo(file, type);
 					CardLocation = filePath;
 					CardName = Path.GetFileNameWithoutExtension(filePath);
 					return true;
@@ -593,20 +562,20 @@ namespace MemcardRex
 			}
 		}
 
-		public void SaveTo(Stream outputStream, MemoryCardType memoryCardType)
+		public void SaveTo(Stream outputStream, Type type)
 		{
 			using (var binWriter = new BinaryWriter(outputStream))
 			{
 				CreateRawCardInternal();
-				switch (memoryCardType)
+				switch (type)
 				{
-					case MemoryCardType.Gme:
+					case Type.Gme:
 						CreateGmeHeader();
 						binWriter.Write(GmeHeader);
 						binWriter.Write(rawData);
 						break;
 
-					case MemoryCardType.Vgs:
+					case Type.Vgs:
 						binWriter.Write(GetVgsHeader());
 						binWriter.Write(rawData);
 						break;
@@ -685,24 +654,24 @@ namespace MemcardRex
 				{
 					case "MC":
 						startOffset = 0;
-						CardType = MemoryCardType.Raw;
+						CardType = Type.Raw;
 						break;
 
 					case "123-456-STD":
 						startOffset = 3904;
-						CardType = MemoryCardType.Gme;
+						CardType = Type.Gme;
 						for (var i = 0; i < GmeHeaderSize; i++)
 							GmeHeader[i] = tempData[i];
 						break;
 
 					case "VgsM":
 						startOffset = 64;
-						CardType = MemoryCardType.Vgs;
+						CardType = Type.Vgs;
 						break;
 
 					case "PMV": 
 						startOffset = 128;
-						CardType = MemoryCardType.Vmp;
+						CardType = Type.Vmp;
 						break;
 
 					default: //File type is not supported

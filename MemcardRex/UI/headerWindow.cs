@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using MemcardRex.Enums;
+using MemcardRex.Enums.MemoryCard;
 
 namespace MemcardRex
 {
@@ -15,11 +16,11 @@ namespace MemcardRex
 		//Save header data
 		public string prodCode;
 		public string saveIdentifier;
-		public MemoryCardSaveRegion saveRegion;
+		public SaveRegion saveRegion;
 		public headerWindow() { InitializeComponent(); }
 		private void headerWindow_Load(object sender, EventArgs e) { }
 		//Initialize dialog by loading provided values
-		public void initializeDialog(string applicationName, string dialogTitle, string prodCode, string identifier, MemoryCardSaveRegion region)
+		public void initializeDialog(string applicationName, string dialogTitle, string prodCode, string identifier, SaveRegion region)
 		{
 			appName = applicationName;
 			Text = dialogTitle;
@@ -29,15 +30,15 @@ namespace MemcardRex
 			//Check what region is selected
 			switch (region)
 			{
-				case MemoryCardSaveRegion.US: //America
+				case SaveRegion.US: //America
 					regionCombobox.SelectedIndex = 0;
 					break;
 
-				case MemoryCardSaveRegion.EU: //Europe
+				case SaveRegion.EU: //Europe
 					regionCombobox.SelectedIndex = 1;
 					break;
 
-				case MemoryCardSaveRegion.JP: //Japan
+				case SaveRegion.JP: //Japan
 					regionCombobox.SelectedIndex = 2;
 					break;
 
@@ -73,19 +74,19 @@ namespace MemcardRex
 				switch (regionCombobox.SelectedIndex)
 				{
 					default:
-						saveRegion = (MemoryCardSaveRegion)customSaveRegion;
+						saveRegion = (SaveRegion)customSaveRegion;
 						break;
 
 					case 0:
-						saveRegion = MemoryCardSaveRegion.US;
+						saveRegion = SaveRegion.US;
 						break;
 
 					case 1:
-						saveRegion = MemoryCardSaveRegion.EU;
+						saveRegion = SaveRegion.EU;
 						break;
 
 					case 2:
-						saveRegion = MemoryCardSaveRegion.JP;
+						saveRegion = SaveRegion.JP;
 						break;
 				}
 

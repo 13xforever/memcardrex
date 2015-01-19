@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using MemcardRex.Enums;
+using MemcardRex.Enums.MemoryCard;
 
 namespace MemcardRex
 {
@@ -19,7 +20,7 @@ namespace MemcardRex
 		public informationWindow() { InitializeComponent(); }
 		private void OKbutton_Click(object sender, EventArgs e) { Close(); }
 		//Initialize default values
-		public void initializeDialog(string saveTitle, string saveProdCode, string saveIdentifier, MemoryCardSaveRegion saveRegion, int saveSize, int iconFrames, int interpolationMode, int iconPropertiesSize, Bitmap[] saveIcons, IList<int> slotNumbers, int backColor)
+		public void initializeDialog(string saveTitle, string saveProdCode, string saveIdentifier, SaveRegion saveRegion, int saveSize, int iconFrames, int interpolationMode, int iconPropertiesSize, Bitmap[] saveIcons, IList<int> slotNumbers, int backColor)
 		{
 			string ocupiedSlots = null;
 			iconInterpolationMode = interpolationMode;
@@ -40,15 +41,15 @@ namespace MemcardRex
 					regionLabel.Text = "0x" + saveRegion.ToString("X4");
 					break;
 
-				case MemoryCardSaveRegion.US:
+				case SaveRegion.US:
 					regionLabel.Text = "America";
 					break;
 
-				case MemoryCardSaveRegion.EU:
+				case SaveRegion.EU:
 					regionLabel.Text = "Europe";
 					break;
 
-				case MemoryCardSaveRegion.JP:
+				case SaveRegion.JP:
 					regionLabel.Text = "Japan";
 					break;
 			}
