@@ -853,7 +853,7 @@ namespace MemcardRex
 									singleSaveType = SingleSaveFormat.ActionReplay;
 									break;
 							}
-							PScard[listIndex].SaveSingleSave(saveFileDlg.FileName, slotNumber, singleSaveType);
+							PScard[listIndex].ExportSingleSave(saveFileDlg.FileName, slotNumber, singleSaveType);
 						}
 						break;
 					case SaveType.DeletedInitial:
@@ -895,7 +895,7 @@ namespace MemcardRex
 					//If user selected a card save to it
 					if (openFileDlg.ShowDialog() == DialogResult.OK)
 					{
-						if (PScard[listIndex].openSingleSave(openFileDlg.FileName, slotNumber, out requiredSlots))
+						if (PScard[listIndex].ImportSingleSave(openFileDlg.FileName, slotNumber, out requiredSlots))
 						{
 							refreshListView(listIndex, slotNumber);
 						}

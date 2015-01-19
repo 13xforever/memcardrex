@@ -14,7 +14,7 @@ namespace MemcardRex
 {
 	public class Ps1Card
 	{
-		private const int MemoryCardSize = 128*1024;
+		private const int MemoryCardSize = 16*8192;
 		private const int GmeHeaderSize = 3904;
 		private static readonly Encoding AnsiEncoding = Encoding.Default;
 		private static readonly Encoding ShiftJisEncodig = Encoding.GetEncoding(932);
@@ -415,7 +415,7 @@ namespace MemcardRex
 			ParseEverything();
 		}
 
-		public bool SaveSingleSave(string fileName, int slotNumber, SingleSaveFormat singleSaveType)
+		public bool ExportSingleSave(string fileName, int slotNumber, SingleSaveFormat singleSaveType)
 		{
 			try
 			{
@@ -453,94 +453,53 @@ namespace MemcardRex
 			}
 		}
 
-		//Import single save to the Memory Card
-		public bool openSingleSave(string fileName, int slotNumber, out int requiredSlots)
+		public bool ImportSingleSave(string fileName, int slotNumber, out int requiredSlots)
 		{
 			requiredSlots = 0;
-			string tempString = null;
-			byte[] inputData = null;
-			byte[] finalData = null;
-			BinaryReader binReader = null;
-
-			//Check if the file is allowed to be opened
 			try
 			{
-				binReader = new BinaryReader(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+				byte[] inputData;
+				using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+				using (var binReader = new BinaryReader(stream))
+					inputData = binReader.ReadBytes(123008);
+				var signature = inputData.Length > 1 ? Encoding.ASCII.GetString(inputData, 0, 2).Trim('\0') : null;
+				byte[] cardData;
+				switch (signature)
+				{
+					case "Q": //MCS single save
+						cardData = inputData;
+						break;
+
+					case "SC": //RAW single save
+						cardData = new byte[inputData.Length + 128];
+						var singleSaveHeader = AnsiEncoding.GetBytes(Path.GetFileName(fileName));
+						Buffer.BlockCopy(singleSaveHeader, 0, cardData, 10, Math.Min(20, singleSaveHeader.Length));
+						Buffer.BlockCopy(inputData, 0, cardData, 128, inputData.Length);
+						break;
+
+					case "V": //PSV single save (PS3 virtual save)
+						if (inputData[60] != 1) return false; // not a PS1 type save
+
+						cardData = new byte[inputData.Length - 4];
+						Buffer.BlockCopy(inputData, 100, cardData, 10, 20);
+						Buffer.BlockCopy(inputData, 132, cardData, 128, inputData.Length-132);
+						break;
+
+					default: //Action Replay single save
+						if (!(inputData[0x36] == 0x53 && inputData[0x37] == 0x43)) return false; // not an AR save (check for SC magic)
+
+						cardData = new byte[inputData.Length + 74];
+						Buffer.BlockCopy(inputData, 0, cardData, 10, 20);
+						Buffer.BlockCopy(inputData, 54, cardData, 128, inputData.Length-54);
+						break;
+				}
+				cardData[0] = 0x51; //Q
+				return SetSaveBytes(slotNumber, cardData, out requiredSlots);
 			}
 			catch (Exception)
 			{
 				return false;
 			}
-
-			//Put data into temp array
-			inputData = binReader.ReadBytes(123008);
-
-			//File is sucesfully read, close the stream
-			binReader.Close();
-
-			//Check the format of the save and if it's supported load it (filter illegal characters from types)
-			if (inputData.Length > 3) tempString = Encoding.ASCII.GetString(inputData, 0, 2).Trim((char)0x0);
-
-			switch (tempString)
-			{
-				default: //Action Replay single save
-
-					//Check if this is really an AR save (check for SC magic)
-					if (!(inputData[0x36] == 0x53 && inputData[0x37] == 0x43)) return false;
-
-					finalData = new byte[inputData.Length + 74];
-
-					//Recreate save header
-					finalData[0] = 0x51; //Q
-
-					for (var i = 0; i < 20; i++)
-						finalData[i + 10] = inputData[i];
-
-					//Copy save data
-					for (var i = 0; i < inputData.Length - 54; i++)
-						finalData[i + 128] = inputData[i + 54];
-					break;
-
-				case "Q": //MCS single save
-					finalData = inputData;
-					break;
-
-				case "SC": //RAW single save
-					finalData = new byte[inputData.Length + 128];
-					var singleSaveHeader = Encoding.Default.GetBytes(Path.GetFileName(fileName));
-
-					//Recreate save header
-					finalData[0] = 0x51; //Q
-
-					for (var i = 0; i < 20 && i < singleSaveHeader.Length; i++)
-						finalData[i + 10] = singleSaveHeader[i];
-
-					//Copy save data
-					for (var i = 0; i < inputData.Length; i++)
-						finalData[i + 128] = inputData[i];
-					break;
-
-				case "V": //PSV single save (PS3 virtual save)
-					//Check if this is a PS1 type save
-					if (inputData[60] != 1) return false;
-
-					finalData = new byte[inputData.Length - 4];
-
-					//Recreate save header
-					finalData[0] = 0x51; //Q
-
-					for (var i = 0; i < 20; i++)
-						finalData[i + 10] = inputData[i + 100];
-
-					//Copy save data
-					for (var i = 0; i < inputData.Length - 132; i++)
-						finalData[i + 128] = inputData[i + 132];
-					break;
-			}
-
-			//Import the save to Memory Card
-			if (SetSaveBytes(slotNumber, finalData, out requiredSlots)) return true;
-			return false;
 		}
 
 		public bool SaveTo(string filePath, Type type)
