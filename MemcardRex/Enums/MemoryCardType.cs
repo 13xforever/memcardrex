@@ -18,13 +18,12 @@ namespace MemcardRex.Enums
 
 	public enum MemoryCardSaveType: byte
 	{
-		Formatted = 0,         // 0xA0
-		Initial = 1,           // 0x51
-		MiddleLink = 2,        // 0x52
-		EndLink = 3,           // 0x53
-		DeletedInitial = 4,    // 0xA1
-		DeletedMiddleLink = 5, // 0xA2
-		DeletedEndLink = 6,    // 0xA3
-		Corrupted = 7,
+		Formatted = 0xA0,
+		Initial = 0x51,
+		MiddleLink = 0x52,
+		EndLink = 0x53,
+		DeletedInitial = 0xA1,
+		DeletedMiddleLink = 0xA2,
+		DeletedEndLink = 0xA3,
 	}
 }

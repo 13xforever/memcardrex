@@ -1504,8 +1504,6 @@ namespace MemcardRex
 				if (cardList[listIndex].SelectedItems.Count > 0)
 				{
 					var slotNumber = cardList[listIndex].SelectedIndices[0];
-
-					//Check the save type
 					switch (PScard[listIndex].SaveType[slotNumber])
 					{
 						case MemoryCardSaveType.Formatted:
@@ -1552,7 +1550,7 @@ namespace MemcardRex
 							disableEditItems();
 							break;
 
-						case MemoryCardSaveType.Corrupted:
+						default:
 							disableEditItems();
 							removeSaveformatSlotsToolStripMenuItem.Enabled = true;
 							removeSaveformatSlotsToolStripMenuItem1.Enabled = true;

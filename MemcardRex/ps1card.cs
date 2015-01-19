@@ -51,7 +51,6 @@ namespace MemcardRex
 		private void CreateRawCardInternal()
 		{
 			rawData.Clear();
-
 			// signature
 			rawData[0] = 0x4D;   // M
 			rawData[1] = 0x43;   // C
@@ -59,7 +58,6 @@ namespace MemcardRex
 			rawData[8064] = 0x4D;
 			rawData[8065] = 0x43;
 			rawData[8191] = 0x0E;
-
 			// data
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
@@ -68,7 +66,6 @@ namespace MemcardRex
 				for (var currentByte = 0; currentByte < 8192; currentByte++)
 					rawData[8192 + (slotNumber*8192) + currentByte] = SaveData[slotNumber, currentByte];
 			}
-
 			// create authentic data (just for completeness)
 			for (var i = 0; i < 20; i++)
 			{
@@ -77,7 +74,6 @@ namespace MemcardRex
 				rawData[2048 + (i*128) + 1] = 0xFF;
 				rawData[2048 + (i*128) + 2] = 0xFF;
 				rawData[2048 + (i*128) + 3] = 0xFF;
-
 				// next slot pointer doesn't point to anything
 				rawData[2048 + (i*128) + 8] = 0xFF;
 				rawData[2048 + (i*128) + 9] = 0xFF;
@@ -87,23 +83,17 @@ namespace MemcardRex
 		private void CreateGmeHeader()
 		{
 			GmeHeader.Clear();
-
-			// signature
 			var signature = Encoding.ASCII.GetBytes("123-456-STD");
 			Buffer.BlockCopy(signature, 0, GmeHeader, 0, signature.Length);
-
 			GmeHeader[18] = 0x01; //todo: magic numbers or checksum?
 			GmeHeader[20] = 0x01;
 			GmeHeader[21] = 0x4D; //M
-
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
 				GmeHeader[22 + slotNumber] = HeaderData[slotNumber, 0];
 				GmeHeader[38 + slotNumber] = HeaderData[slotNumber, 8];
-
 				//Convert string from UTF-16 to currently used codepage
 				var tempByteArray = Encoding.Convert(Encoding.Unicode, Encoding.Default, Encoding.Unicode.GetBytes(SaveComments[slotNumber])); //todo: should it be hard-coded windows-1252 or similar?
-
 				//Inject comments to GME header
 				for (var byteCount = 0; byteCount < tempByteArray.Length; byteCount++)
 					GmeHeader[byteCount + 64 + (256*slotNumber)] = tempByteArray[byteCount];
@@ -113,8 +103,6 @@ namespace MemcardRex
 		private byte[] GetVgsHeader()
 		{
 			var vgsHeader = new byte[64];
-
-			// signature
 			var signature = Encoding.ASCII.GetBytes("VgsM");
 			Buffer.BlockCopy(signature, 0, vgsHeader, 0, signature.Length);
 			vgsHeader[4] = 0x1;
@@ -126,44 +114,8 @@ namespace MemcardRex
 
 		private void LoadSlotTypes()
 		{
-			SaveType.Clear();
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
-			{
-				switch (HeaderData[slotNumber, 0])
-				{
-					case 0x51:
-						SaveType[slotNumber] = MemoryCardSaveType.Initial;
-						break;
-
-					case 0x52:
-						SaveType[slotNumber] = MemoryCardSaveType.MiddleLink;
-						break;
-
-					case 0x53:
-						SaveType[slotNumber] = MemoryCardSaveType.EndLink;
-						break;
-
-					case 0xA0:
-						SaveType[slotNumber] = MemoryCardSaveType.Formatted;
-						break;
-
-					case 0xA1:
-						SaveType[slotNumber] = MemoryCardSaveType.DeletedInitial;
-						break;
-
-					case 0xA2:
-						SaveType[slotNumber] = MemoryCardSaveType.DeletedMiddleLink;
-						break;
-
-					case 0xA3:
-						SaveType[slotNumber] = MemoryCardSaveType.DeletedEndLink;
-						break;
-
-					default: //Regular values have not been found, save is corrupted
-						SaveType[slotNumber] = MemoryCardSaveType.Corrupted;
-						break;
-				}
-			}
+				SaveType[slotNumber] = (MemoryCardSaveType)HeaderData[slotNumber, 0];
 		}
 
 		//Load Save name, Product code and Identifier from the header data
@@ -232,37 +184,29 @@ namespace MemcardRex
 			//Get all linked saves
 			var saveSlots = FindSaveLinks(slotNumber);
 
-			//Cycle through each slot
+			//todo: why SaveType is not being changed?
 			for (var i = 0; i < saveSlots.Length; i++)
-			{
-				//Check the save type
 				switch (SaveType[saveSlots[i]])
 				{
 					case MemoryCardSaveType.Initial:
-						HeaderData[saveSlots[i], 0] = 0xA1;
+						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.DeletedInitial;
 						break;
-
 					case MemoryCardSaveType.MiddleLink:
-						HeaderData[saveSlots[i], 0] = 0xA2;
+						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.DeletedMiddleLink;
 						break;
-
 					case MemoryCardSaveType.EndLink:
-						HeaderData[saveSlots[i], 0] = 0xA3;
+						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.DeletedEndLink;
 						break;
-
 					case MemoryCardSaveType.DeletedInitial:
-						HeaderData[saveSlots[i], 0] = 0x51;
+						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.Initial;
 						break;
-
 					case MemoryCardSaveType.DeletedMiddleLink:
-						HeaderData[saveSlots[i], 0] = 0x52;
+						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.MiddleLink;
 						break;
-
 					case MemoryCardSaveType.DeletedEndLink:
-						HeaderData[saveSlots[i], 0] = 0x53;
+						HeaderData[saveSlots[i], 0] = (byte)MemoryCardSaveType.EndLink;
 						break;
 				}
-			}
 
 			//Reload data
 			CalculateChecksums();
@@ -314,7 +258,7 @@ namespace MemcardRex
 				if (currentSlot > 15) break;
 
 				//Check if current slot is corrupted
-				if (SaveType[currentSlot] == MemoryCardSaveType.Corrupted) break;
+				if (!Enum.IsDefined(typeof(MemoryCardSaveType), SaveType[currentSlot])) break;
 
 				//Check if pointer points to the next save
 				if (HeaderData[currentSlot, 8] == 0xFF) break;
