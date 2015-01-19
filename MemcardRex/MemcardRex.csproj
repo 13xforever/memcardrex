@@ -74,7 +74,7 @@
       <DependentUpon>aboutWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="BuildTrack.cs" />
-    <Compile Include="CardLink.cs" />
+    <Compile Include="Hardware\CardLink.cs" />
     <Compile Include="UI\commentsWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -87,7 +87,7 @@
     <Compile Include="UI\compareWindow.Designer.cs">
       <DependentUpon>compareWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="DexDrive.cs" />
+    <Compile Include="Hardware\DexDrive.cs" />
     <Compile Include="UI\cardReaderWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -119,7 +119,7 @@
     <Compile Include="UI\mainWindow.Designer.cs">
       <DependentUpon>mainWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="MemCARDduino.cs" />
+    <Compile Include="Hardware\MemCARDduino.cs" />
     <Compile Include="UI\messageWindow.cs">
       <SubType>Form</SubType>
     </Compile>
