@@ -17,7 +17,7 @@ namespace Tests
 		[Test]
 		public void GmeHeaderTest()
 		{
-			var card = new Ps1Card();
+			var card = new PsOneCard();
 			card.Format();
 			using (var stream = new MemoryStream())
 				card.ExportTo(stream, Type.Gme);

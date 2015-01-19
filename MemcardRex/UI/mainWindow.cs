@@ -85,7 +85,7 @@ namespace MemcardRex
 		private programSettings mainSettings;
 
 		//List of opened Memory Cards
-		private readonly List<Ps1Card> PScard = new List<Ps1Card>();
+		private readonly List<PsOneCard> PScard = new List<PsOneCard>();
 
 		//Listview of the opened Memory Cards
 		private readonly List<ListView> cardList = new List<ListView>();
@@ -340,28 +340,31 @@ namespace MemcardRex
 		{
 			//Check if the card already exists
 			foreach (var checkCard in PScard)
-			{
 				if (checkCard.CardLocation == fileName && fileName != null)
 				{
 					//Card is already opened, display message and exit
 					new messageWindow().ShowMessage(this, appName, "'" + Path.GetFileName(fileName) + "' is already opened.", "OK", null, true);
 					return;
 				}
-			}
-
-			//Create a new card
-			PScard.Add(new Ps1Card());
 
 			try
 			{
-				PScard[PScard.Count - 1].ImportFrom(fileName);
-				backupMemcard(fileName);
+				var newCard = new PsOneCard();
+				if (string.IsNullOrEmpty(fileName))
+				{
+					newCard.Format();
+					newCard.ChangedFlag = false;
+				}
+				else
+				{
+					newCard.ImportFrom(fileName);
+					backupMemcard(fileName);
+				}
+				PScard.Add(newCard);
 				createTabPage();
 			}
 			catch (Exception e)
 			{
-				//Remove the last card created
-				PScard.RemoveAt(PScard.Count - 1);
 				new messageWindow().ShowMessage(this, appName, e.Message, "OK", null, true);
 			}
 		}
@@ -1617,7 +1620,7 @@ namespace MemcardRex
 			if (readData != null)
 			{
 				//Create a new card
-				PScard.Add(new Ps1Card());
+				PScard.Add(new PsOneCard());
 
 				//Fill the card with the new data
 				PScard[PScard.Count - 1].LoadMemoryCard(readData);
@@ -2097,7 +2100,7 @@ namespace MemcardRex
 			if (new messageWindow().ShowMessage(this, appName, "Formatting will delete all saves on the Memory Card.\nDo you want to proceed with this operation?", "No", "Yes", true) == "No") return;
 
 			var frameNumber = 1024;
-			var blankCard = new Ps1Card();
+			var blankCard = new PsOneCard();
 
 			//Check if quick format option is turned on
 			if (mainSettings.formatType == 0) frameNumber = 64;
