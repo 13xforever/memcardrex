@@ -207,7 +207,7 @@
     </Compile>
     <Compile Include="Ps1Card.cs" />
     <Compile Include="rexPluginSystem.cs" />
-    <Compile Include="sjisConverter.cs" />
+    <Compile Include="Utils\sjisConverter.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">

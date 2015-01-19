@@ -15,9 +15,11 @@ namespace MemcardRex
 	{
 		public const int MemoryCardSize = 128*1024;
 		public const int GmeHeaderSize = 3904;
+		private static readonly Encoding AnsiEncoding = Encoding.Default;
+		private static readonly Encoding ShiftJisEncodig = Encoding.GetEncoding(932);
 
-		private readonly charConverter sjisConverter = new charConverter();
 		private byte[] rawData = new byte[MemoryCardSize];
+
 
 		public string CardLocation; //path + filename
 		public string CardName;
@@ -93,7 +95,7 @@ namespace MemcardRex
 				GmeHeader[22 + slotNumber] = HeaderData[slotNumber, 0];
 				GmeHeader[38 + slotNumber] = HeaderData[slotNumber, 8];
 				//Convert string from UTF-16 to currently used codepage
-				var tempByteArray = Encoding.Convert(Encoding.Unicode, Encoding.Default, Encoding.Unicode.GetBytes(SaveComments[slotNumber])); //todo: should it be hard-coded windows-1252 or similar?
+				var tempByteArray = Encoding.Convert(Encoding.Unicode, AnsiEncoding, Encoding.Unicode.GetBytes(SaveComments[slotNumber]));
 				//Inject comments to GME header
 				for (var byteCount = 0; byteCount < tempByteArray.Length; byteCount++)
 					GmeHeader[byteCount + 64 + (256*slotNumber)] = tempByteArray[byteCount];
@@ -118,52 +120,27 @@ namespace MemcardRex
 				SaveType[slotNumber] = (MemoryCardSaveType)HeaderData[slotNumber, 0];
 		}
 
-		//Load Save name, Product code and Identifier from the header data
-		private void LoadStringData()
+		private static string GetString(byte[,] header, int slotNumber, int offset, int dataLength, Encoding encoding, byte[] buffer)
 		{
-			//Temp array used for conversion
-			byte[] tempByteArray;
+			for (var idx = 0; idx < dataLength; idx++)
+				buffer[idx] = header[slotNumber, offset + idx];
+			return encoding.GetString(buffer, 0, dataLength);
+		}
 
-			//Clear existing data
-			SaveProductCode = new string[15];
-			SaveIdentifier = new string[15];
-			SaveName = new string[15, 2];
-
+		private void LoadStringData() //Load Save name, Product code and Identifier from the header data
+		{
+			SaveProductCode.Clear();
+			SaveIdentifier.Clear();
+			SaveName.Clear();
+			var buffer = new byte[64];
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
 			{
-				//Copy Product code
-				tempByteArray = new byte[10];
-				for (var byteCount = 0; byteCount < 10; byteCount++)
-					tempByteArray[byteCount] = HeaderData[slotNumber, byteCount + 12];
-
-				//Convert Product Code from currently used codepage to UTF-16
-				SaveProductCode[slotNumber] = Encoding.Default.GetString(tempByteArray);
-
-
-				//Copy Identifier
-				tempByteArray = new byte[8];
-				for (var byteCount = 0; byteCount < 8; byteCount++)
-					tempByteArray[byteCount] = HeaderData[slotNumber, byteCount + 22];
-
-				//Convert Identifier from currently used codepage to UTF-16
-				SaveIdentifier[slotNumber] = Encoding.Default.GetString(tempByteArray);
-
-
-				//Copy bytes from save data to temp array
-				tempByteArray = new byte[64];
-				for (var currentByte = 0; currentByte < 64; currentByte++)
-				{
-					tempByteArray[currentByte] = SaveData[slotNumber, currentByte + 4];
-				}
-
-				//Convert save name from Shift-JIS to UTF-16 as ASCII equivalent
-				SaveName[slotNumber, 0] = sjisConverter.convertSJIStoASCII(tempByteArray);
-
-				//Convert save name from Shift-JIS to UTF-16
-				SaveName[slotNumber, 1] = Encoding.GetEncoding(932).GetString(tempByteArray);
-
-				//Check if the title converted properly, get ASCII if it didn't
-				if (SaveName[slotNumber, 0] == null) SaveName[slotNumber, 0] = Encoding.Default.GetString(tempByteArray, 0, 32);
+				SaveProductCode[slotNumber] = GetString(HeaderData, slotNumber, 12, 10, AnsiEncoding, buffer);
+				SaveIdentifier[slotNumber] = GetString(HeaderData, slotNumber, 22, 8, AnsiEncoding, buffer);
+				SaveName[slotNumber, 1] = GetString(SaveData, slotNumber, 4, 64, ShiftJisEncodig, buffer);
+				SaveName[slotNumber, 0] = CharConverter.SjisToAscii(buffer); //Convert save name from Shift-JIS to UTF-16 as ASCII equivalent
+				if (string.IsNullOrEmpty(SaveName[slotNumber, 0]))
+					SaveName[slotNumber, 0] = AnsiEncoding.GetString(buffer, 0, 32);
 			}
 		}
 
