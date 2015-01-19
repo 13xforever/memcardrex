@@ -13,8 +13,8 @@ namespace MemcardRex
 {
 	public class Ps1Card
 	{
-		public const int MemoryCardSize = 128*1024;
-		public const int GmeHeaderSize = 3904;
+		private const int MemoryCardSize = 128*1024;
+		private const int GmeHeaderSize = 3904;
 		private static readonly Encoding AnsiEncoding = Encoding.Default;
 		private static readonly Encoding ShiftJisEncodig = Encoding.GetEncoding(932);
 
@@ -24,19 +24,20 @@ namespace MemcardRex
 		public string CardName;
 		public MemoryCardType CardType;
 		public bool ChangedFlag; //Flag used to determine if the card has been edited since the last saving
-		public byte[] GmeHeader = new byte[GmeHeaderSize]; //Header data for the GME Memory Card
-		public byte[,] HeaderData = new byte[15, 128]; //15 slots (128 bytes each)
+
+		public readonly byte[] GmeHeader = new byte[GmeHeaderSize]; //Header data for the GME Memory Card
+		public readonly byte[,] HeaderData = new byte[15, 128]; //15 slots (128 bytes each)
 		public Bitmap[,] IconData = new Bitmap[15, 3];//15 slots, 3 icons per slot, (16*16px icons)
 		public int[] IconFrames = new int[15];
 		public Color[,] IconPalette = new Color[15, 16]; //15 slots x 16 colors
 		public string[] SaveComments = new string[15]; //Save comments (supported by .gme files only), 255 characters allowed
-		public byte[,] SaveData = new byte[15, 8192];//15 slots (8192 bytes each)
-		public string[] SaveIdentifier = new string[15];
-		public string[,] SaveName = new string[15, 2]; //Name of the save in ASCII(0) and UTF-16(1) encoding
-		public string[] SaveProductCode = new string[15];
+		public readonly byte[,] SaveData = new byte[15, 8192];//15 slots (8192 bytes each)
+		public readonly string[] SaveIdentifier = new string[15];
+		public readonly string[,] SaveName = new string[15, 2]; //Name of the save in ASCII(0) and UTF-16(1) encoding
+		public readonly string[] SaveProductCode = new string[15];
 		public MemoryCardSaveRegion[] SaveRegion = new MemoryCardSaveRegion[15];
-		public int[] SaveSize = new int[15]; //Size of the save in KBs
-		public MemoryCardSaveType[] SaveType = new MemoryCardSaveType[15];
+		public readonly int[] SaveSize = new int[15]; //Size of the save in KBs
+		public readonly MemoryCardSaveType[] SaveType = new MemoryCardSaveType[15];
 
 		private void ParseRawCardInternal()
 		{
@@ -86,7 +87,7 @@ namespace MemcardRex
 			GmeHeader.Clear();
 			var signature = Encoding.ASCII.GetBytes("123-456-STD");
 			Buffer.BlockCopy(signature, 0, GmeHeader, 0, signature.Length);
-			GmeHeader[18] = 0x01; //todo: magic numbers or checksum?
+			GmeHeader[18] = 0x01;
 			GmeHeader[20] = 0x01;
 			GmeHeader[21] = 0x4D; //M
 			for (var slotNumber = 0; slotNumber < 15; slotNumber++)
@@ -240,92 +241,49 @@ namespace MemcardRex
 			return result;
 		}
 
-		//Return all bytes of the specified save
 		public byte[] GetSaveBytes(int slotNumber)
 		{
-			//Get all linked saves
 			var saveSlots = FindSaveLinks(slotNumber);
-
-			//Calculate the number of bytes needed to store the save
-			var saveBytes = new byte[8320 + ((saveSlots.Count - 1)*8192)];
-
-			//Copy save header
+			var saveBytes = new byte[128 + saveSlots.Count*8192];
 			for (var i = 0; i < 128; i++)
 				saveBytes[i] = HeaderData[saveSlots[0], i];
-
-			//Copy save data
-			for (var sNumber = 0; sNumber < saveSlots.Count; sNumber++)
-			{
-				for (var i = 0; i < 8192; i++)
-					saveBytes[128 + (sNumber*8192) + i] = SaveData[saveSlots[sNumber], i];
-			}
-
-			//Return save bytes
+			for (var i = 0; i < saveSlots.Count; i++)
+				for (var j = 0; j < 8192; j++)
+					saveBytes[128 + i*8192 + j] = SaveData[saveSlots[i], j];
 			return saveBytes;
 		}
 
-		//Input given bytes back to the Memory Card
-		public bool SetSaveBytes(int slotNumber, byte[] saveBytes, out int reqSlots)
+		public bool SetSaveBytes(int slotNumber, byte[] saveBytes, out int requiredSlots)
 		{
-			//Number of slots to set
-			var slotCount = (saveBytes.Length - 128)/8192;
-			var freeSlots = FindContinuousFreeSlots(slotNumber, slotCount);
-			var numberOfBytes = slotCount*8192;
-			reqSlots = slotCount;
+			requiredSlots = (saveBytes.Length + 8192 - 128) / 8192;
+			var freeSlots = FindContinuousFreeSlots(slotNumber, requiredSlots);
+			var numberOfBytes = requiredSlots * 8192;
+			if (freeSlots.Count < requiredSlots) return false;
 
-			//Check if there are enough free slots for the operation
-			if (freeSlots.Count < slotCount) return false;
-
-			//Place header data
 			for (var i = 0; i < 128; i++)
 				HeaderData[freeSlots[0], i] = saveBytes[i];
-
-			//Place save size in the header
 			HeaderData[freeSlots[0], 4] = (byte)(numberOfBytes & 0xFF);
-			HeaderData[freeSlots[0], 5] = (byte)((numberOfBytes & 0xFF00) >> 8);
-			HeaderData[freeSlots[0], 6] = (byte)((numberOfBytes & 0xFF0000) >> 16);
+			HeaderData[freeSlots[0], 5] = (byte)((numberOfBytes >> 8) & 0xFF);
+			HeaderData[freeSlots[0], 6] = (byte)((numberOfBytes >> 16) & 0xFF);
+			for (var i = 0; i < requiredSlots; i++)
+				for (var j = 0; j < 8192; j++)
+					SaveData[freeSlots[i], j] = saveBytes[128 + (i*8192) + j];
 
-			//Place save data(cycle through each save)
-			for (var i = 0; i < slotCount; i++)
-			{
-				//Set all bytes
-				for (var byteCount = 0; byteCount < 8192; byteCount++)
-				{
-					SaveData[freeSlots[i], byteCount] = saveBytes[128 + (i*8192) + byteCount];
-				}
-			}
-
-			//Recreate header data
-			//Set pointer to all slots except the last
+			// set links
+			HeaderData[freeSlots[0], 0] = (byte)MemoryCardSaveType.Initial;
 			var lastFreeSlotIdx = freeSlots.Count - 1;
 			for (var i = 0; i < lastFreeSlotIdx; i++)
 			{
-				HeaderData[freeSlots[i], 0] = 0x52;
+				HeaderData[freeSlots[i], 0] = (byte)MemoryCardSaveType.MiddleLink;
 				HeaderData[freeSlots[i], 8] = (byte)freeSlots[i + 1];
 				HeaderData[freeSlots[i], 9] = 0x00;
 			}
-
-			//Add final slot pointer to the last slot in the link
-			HeaderData[freeSlots[lastFreeSlotIdx], 0] = 0x53;
+			HeaderData[freeSlots[lastFreeSlotIdx], 0] = (byte)MemoryCardSaveType.EndLink;
 			HeaderData[freeSlots[lastFreeSlotIdx], 8] = 0xFF;
 			HeaderData[freeSlots[lastFreeSlotIdx], 9] = 0xFF;
 
-			//Add initial saveType to the first slot
-			HeaderData[freeSlots[0], 0] = 0x51;
-
-			//Reload data
-			CalculateChecksums();
-			LoadStringData();
-			LoadSlotTypes();
-			LoadRegion();
-			CalculateSaveSize();
-			LoadPalette();
-			LoadIcons();
-			LoadIconFrames();
-
-			//Set changedFlag to edited
 			ChangedFlag = true;
-
+			ParseEverything();
 			return true;
 		}
 

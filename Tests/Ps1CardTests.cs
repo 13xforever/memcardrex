@@ -32,5 +32,24 @@ namespace Tests
 			action(array);
 			action(list);
 		}
+
+		[Test]
+		public void BitShiftTest()
+		{
+			const int numberOfBytes = 0x112233;
+			var oldArray = new byte[4];
+			oldArray[0] = (byte)(numberOfBytes & 0xFF);
+			oldArray[1] = (byte)((numberOfBytes & 0xFF00) >> 8);
+			oldArray[2] = (byte)((numberOfBytes & 0xFF0000) >> 16);
+
+			var newArray = new byte[4];
+			newArray[0] = (byte)(numberOfBytes & 0xFF);
+			newArray[1] = (byte)((numberOfBytes >> 8) & 0xff);
+			newArray[2] = (byte)((numberOfBytes >> 16) & 0xff);
+
+			var bitConverter = BitConverter.GetBytes(numberOfBytes);
+			Assert.That(newArray, Is.EqualTo(oldArray));
+			Assert.That(bitConverter, Is.EqualTo(oldArray));
+		}
 	}
 }
