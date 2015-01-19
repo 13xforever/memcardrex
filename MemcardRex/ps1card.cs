@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
-using MemcardRex.Enums;
 using MemcardRex.Enums.MemoryCard;
 using MemcardRex.Utils;
 using Type = MemcardRex.Enums.MemoryCard.Type;
@@ -29,15 +28,15 @@ namespace MemcardRex
 
 		public readonly byte[] GmeHeader = new byte[GmeHeaderSize]; //Header data for the GME Memory Card
 		public readonly byte[,] HeaderData = new byte[15, 128]; //15 slots (128 bytes each)
-		public Bitmap[,] IconData = new Bitmap[15, 3];//15 slots, 3 icons per slot, (16*16px icons)
-		public int[] IconFrames = new int[15];
-		public Color[,] IconPalette = new Color[15, 16]; //15 slots x 16 colors
-		public string[] SaveComments = new string[15]; //Save comments (supported by .gme files only), 255 characters allowed
+		public readonly Bitmap[,] IconData = new Bitmap[15, 3];//15 slots, 3 icons per slot, (16*16px icons)
+		public readonly int[] IconFrames = new int[15];
+		public readonly Color[,] IconPalette = new Color[15, 16]; //15 slots x 16 colors
+		public readonly string[] SaveComments = new string[15]; //Save comments (supported by .gme files only), 255 characters allowed
 		public readonly byte[,] SaveData = new byte[15, 8192];//15 slots (8192 bytes each)
 		public readonly string[] SaveIdentifier = new string[15];
 		public readonly string[,] SaveName = new string[15, 2]; //Name of the save in ASCII(0) and UTF-16(1) encoding
 		public readonly string[] SaveProductCode = new string[15];
-		public SaveRegion[] SaveRegion = new SaveRegion[15];
+		public readonly SaveRegion[] SaveRegion = new SaveRegion[15];
 		public readonly int[] SaveSize = new int[15]; //Size of the save in KBs
 		public readonly SaveType[] SaveType = new SaveType[15];
 
